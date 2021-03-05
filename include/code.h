@@ -10,6 +10,7 @@ enum Instruction {
 
   I_PUSH,
   I_POP,
+  I_ASSIGN,
 
   I_ADD,
   I_SUB,

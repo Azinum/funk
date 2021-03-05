@@ -58,6 +58,26 @@ i32 simple_expr(Parser* p) {
         break;
       }
 
+      case T_LET: {
+        Ast* orig = p->ast;
+        ast_add_node(p->ast, token); // Add 'let'
+        token = next_token(p->l); // Skip 'let'
+        if (!expect(p, T_IDENTIFIER)) {
+          parse_error("Expected identifier\n");
+          return p->status = ERR;
+        }
+        ast_add_node(p->ast, token);  // Add identifier
+        next_token(p->l);
+        Ast assign_branch = ast_get_last(p->ast);
+        p->ast = &assign_branch;
+
+        simple_expr(p);
+
+        p->ast = orig;
+        break;
+      }
+
+      case T_IDENTIFIER:
       case T_NUMBER: {
         ast_add_node(p->ast, token);
         next_token(p->l);

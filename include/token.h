@@ -69,6 +69,8 @@ enum Token_type {
 
   T_NO_OPERATOR,
 
+  T_LET,
+
   T_STRING,
   T_NUMBER,
   T_IDENTIFIER,
@@ -79,6 +81,8 @@ struct Token {
   i32 length;
   i32 type;
 };
+
+#define TOKEN_LET "let"
 
 void token_print(FILE* file, struct Token token);
 

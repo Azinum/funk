@@ -12,8 +12,8 @@
 
 #define ARITH(VM, OP) { \
   if (VM->stack_top >= 2) { \
-    struct Object* left = &VM->stack[VM->stack_top - 2]; \
-    const struct Object* right = &VM->stack[VM->stack_top - 1]; \
+    struct Object* left = stack_get(VM, 1); \
+    const struct Object* right = stack_get(VM, 0); \
     left->value.number = left->value.number OP right->value.number; \
     stack_pop(VM); \
   } \
@@ -26,6 +26,8 @@
 
 inline void stack_push(struct VM_state* vm, struct Object obj);
 inline void stack_pop(struct VM_state* vm);
+inline struct Object* stack_get(struct VM_state* vm, i32 offset);
+inline struct Object* stack_get_top(struct VM_state* vm);
 static i32 execute(struct VM_state* vm);
 
 i32 vm_init(struct VM_state* vm) {
@@ -52,6 +54,21 @@ void stack_pop(struct VM_state* vm) {
   }
 }
 
+struct Object* stack_get(struct VM_state* vm, i32 offset) {
+  i32 index = vm->stack_top - (offset + 1);
+  if (index >= 0) {
+    return &vm->stack[index];
+  }
+  return NULL;
+}
+
+struct Object* stack_get_top(struct VM_state* vm) {
+  if (vm->stack_top > 0) {
+    return &vm->stack[vm->stack_top - 1];
+  }
+  return NULL;
+}
+
 i32 execute(struct VM_state* vm) {
   i32* ip = vm->ip;
   for (;;) {
@@ -70,6 +87,18 @@ i32 execute(struct VM_state* vm) {
       }
       case I_POP:
         break;
+      case I_ASSIGN: {
+        i32 address = *(ip++);
+        struct Object* left = &vm->constants[address];
+        const struct Object* right = stack_get_top(vm);
+        if (!right) {
+          // Handle error
+          return ERR;
+        }
+        *left = *right;
+        stack_pop(vm);
+        break;
+      }
       case I_ADD:
         ARITH(vm, +);
         break;
@@ -99,11 +128,15 @@ i32 vm_exec(struct VM_state* vm, char* file, char* source) {
           vm->ip = &vm->program[0];
         }
         execute(vm);
-        // ast_print(ast);
+#if 0
+        ast_print(ast);
         printf("program_size: %i, constant_count: %i, stack_top: %i\n", vm->program_size, vm->constant_count, vm->stack_top);
+#endif
         if (vm->stack_top > 0) {
-          struct Object top = vm->stack[vm->stack_top - 1];
-          object_printline(stdout, &top);
+          struct Object* top = stack_get_top(vm);
+          if (top) {
+            object_printline(stdout, top);
+          }
         }
       }
     }
