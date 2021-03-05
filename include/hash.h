@@ -10,9 +10,9 @@ typedef char Hkey[HTABLE_KEY_SIZE];
 struct Item;
 
 typedef struct {
-	struct Item* items;
-	u32 count;	// Count of used slots
-	u32 size;	// Total size of the hash table
+  struct Item* items;
+  u32 count;	// Count of used slots
+  u32 size;	// Total size of the hash table
 } Htable;
 
 Htable ht_create(u32 size);
