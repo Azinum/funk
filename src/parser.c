@@ -16,6 +16,7 @@ static i32 end(Parser* p);
 static i32 expr_end(Parser* p);
 static i32 simple_expr(Parser* p);
 static i32 expression(Parser* p);
+static i32 expressions(Parser* p);
 
 void parser_init(Parser* p, Lexer* l, Ast* ast) {
   p->l = l;
@@ -47,11 +48,11 @@ i32 simple_expr(Parser* p) {
       case T_DIV: {
         Ast* orig = p->ast;
         ast_add_node(p->ast, token);
-        next_token(p->l);
+        next_token(p->l); // Skip operator
         Ast op_branch = ast_get_last(p->ast);
         p->ast = &op_branch;
 
-        expression(p);
+        simple_expr(p);
 
         p->ast = orig;  // Return to original branch
         break;
@@ -60,6 +61,10 @@ i32 simple_expr(Parser* p) {
       case T_STRING:
       case T_NUMBER:
       case T_IDENTIFIER: {
+#if 0
+        struct Token t = get_token(p->l);
+        printf("%s: %.*s\n", __FUNCTION__, t.length, t.string);
+#endif
         ast_add_node(p->ast, token);
         next_token(p->l);
         break;
@@ -77,27 +82,36 @@ i32 simple_expr(Parser* p) {
   return NO_ERR;
 }
 
-// '(' ... ')' | simple_expr
+// '(' ... ')'
 i32 expression(Parser* p) {
-  while (!end(p) && !expr_end(p)) {
-    struct Token token = get_token(p->l);
-    switch (token.type) {
-      case T_EOF:
-        return NO_ERR;
-      case T_OPENPAREN: {
-        next_token(p->l); // Skip '('
-        simple_expr(p);
-        if (!expect(p, T_CLOSEDPAREN)) {
-          parse_error("Missing closing ')' parenthesis in expression\n");
-          return p->status = ERR;
-        }
-        next_token(p->l); // Skip ')'
-        break;
+  struct Token token = get_token(p->l);
+  switch (token.type) {
+    case T_EOF:
+      puts("EOF");
+      return NO_ERR;
+    case T_OPENPAREN: {
+      next_token(p->l); // Skip '('
+      simple_expr(p);
+      if (!expect(p, T_CLOSEDPAREN)) {
+        parse_error("Missing closing ')' parenthesis in expression\n");
+        return p->status = ERR;
       }
-      default:
-        simple_expr(p);
-        break;
+      next_token(p->l); // Skip ')'
+      break;
     }
+    default: {
+      parse_error("Expected expression\n");
+      return p->status = ERR;
+    }
+  }
+  if (p->status != NO_ERR)
+    return p->status;
+  return p->status;
+}
+
+i32 expressions(Parser* p) {
+  while (!end(p)) {
+    expression(p);
     if (p->status != NO_ERR)
       return p->status;
   }
@@ -112,6 +126,6 @@ i32 parser_parse(char* input, char* filename, Ast* ast) {
   parser_init(&parser, &lexer, ast);
 
   next_token(parser.l);
-  expression(&parser);
+  expressions(&parser);
   return parser.status;
 }

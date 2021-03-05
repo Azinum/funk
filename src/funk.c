@@ -5,7 +5,7 @@
 #include "funk.h"
 
 i32 funk_start(i32 argc, char** argv) {
-  char* source = "(+ 2 3)";
+  char* source = "(+ (+ 2 3) 4)";
   char* file = "stdin";
   struct VM_state vm;
   vm_init(&vm);
