@@ -46,6 +46,6 @@
 }
 
 // size of type, count of elements to allocate
-void* list_init(const unsigned int size, unsigned int count);
+void* list_init(const u32 size, u32 count);
 
 #endif

@@ -44,7 +44,7 @@ i32 simple_expr(Parser* p) {
     switch (token.type) {
       case T_ADD:
       case T_SUB:
-      case T_MULT:
+      case T_MUL:
       case T_DIV: {
         Ast* orig = p->ast;
         ast_add_node(p->ast, token);
@@ -58,13 +58,7 @@ i32 simple_expr(Parser* p) {
         break;
       }
 
-      case T_STRING:
-      case T_NUMBER:
-      case T_IDENTIFIER: {
-#if 0
-        struct Token t = get_token(p->l);
-        printf("%s: %.*s\n", __FUNCTION__, t.length, t.string);
-#endif
+      case T_NUMBER: {
         ast_add_node(p->ast, token);
         next_token(p->l);
         break;
@@ -86,9 +80,6 @@ i32 simple_expr(Parser* p) {
 i32 expression(Parser* p) {
   struct Token token = get_token(p->l);
   switch (token.type) {
-    case T_EOF:
-      puts("EOF");
-      return NO_ERR;
     case T_OPENPAREN: {
       next_token(p->l); // Skip '('
       simple_expr(p);

@@ -128,7 +128,7 @@ begin_loop:
         }
         return l->token;
       case '*':
-        l->token.type = T_MULT;
+        l->token.type = T_MUL;
         if (*l->index == '=') {
           l->token.type = T_MULT_ASSIGN;
           l->token.length++;

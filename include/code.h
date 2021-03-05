@@ -4,9 +4,21 @@
 #define _CODE_H
 
 enum Instruction {
-  I_NOP = 0,
+  I_EXIT = 0,
+  I_UNKNOWN,
+  I_NOP,
+
+  I_PUSH,
+  I_POP,
+
+  I_ADD,
+  I_SUB,
+  I_MUL,
+  I_DIV,
 };
 
-i32 code_gen(Ast* ast, i32** program, i32* size);
+struct VM_state;
+
+i32 code_gen(struct VM_state* vm, Ast* ast);
 
 #endif

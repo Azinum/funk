@@ -22,3 +22,18 @@ char* read_file(const char* path) {
 	fclose(file);
 	return buffer;
 }
+
+i32 string_to_int(char* string, i32 length, i32* value) {
+  *value = 0;
+  for (i32 i = 0; i < length; i++) {
+    char ch = string[i];
+    if (ch >= '0' && ch <= '9') {
+      *value = *value * 10 + (string[i] - '0');
+    }
+    else {
+      *value = -1;
+      return ERR;
+    }
+  }
+  return NO_ERR;
+}

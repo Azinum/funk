@@ -5,4 +5,6 @@
 
 char* read_file(const char* path);
 
+i32 string_to_int(char* string, i32 length, i32* value);
+
 #endif

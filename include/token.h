@@ -15,7 +15,7 @@ enum Token_type {
   T_ASSIGN,         // '='
   T_ADD,
   T_SUB,
-  T_MULT,
+  T_MUL,
   T_DIV,
   T_INCREMENT,  // '++'
   T_DECREMENT,  // '--'
