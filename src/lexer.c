@@ -38,6 +38,9 @@ struct Token read_symbol(Lexer* l) {
   if (!strncmp(l->token.string, TOKEN_LET, l->token.length)) {
     l->token.type = T_LET;
   }
+  else if (!strncmp(l->token.string, TOKEN_IF, l->token.length)) {
+    l->token.type = T_IF;
+  }
   else {
     l->token.type = T_IDENTIFIER;
   }
@@ -351,4 +354,12 @@ begin_loop:
 
 struct Token get_token(Lexer* l) {
   return l->token;
+}
+
+struct Token new_token(i32 type) {
+  return (struct Token) {
+    .string = NULL,
+    .length = 0,
+    .type = type,
+  };
 }

@@ -11,6 +11,8 @@ enum Instruction {
   I_PUSH,
   I_POP,
   I_ASSIGN,
+  I_COND_JUMP,
+  I_JUMP,
 
   I_ADD,
   I_SUB,

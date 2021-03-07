@@ -69,7 +69,10 @@ enum Token_type {
 
   T_NO_OPERATOR,
 
+  T_EXPR, // NOTE(lucas): Tag to identify expression branches in ast
+
   T_LET,
+  T_IF,
 
   T_STRING,
   T_NUMBER,
@@ -83,6 +86,7 @@ struct Token {
 };
 
 #define TOKEN_LET "let"
+#define TOKEN_IF "if"
 
 void token_print(FILE* file, struct Token token);
 

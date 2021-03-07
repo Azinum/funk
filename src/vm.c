@@ -28,6 +28,7 @@ inline void stack_push(struct VM_state* vm, struct Object obj);
 inline void stack_pop(struct VM_state* vm);
 inline struct Object* stack_get(struct VM_state* vm, i32 offset);
 inline struct Object* stack_get_top(struct VM_state* vm);
+inline i32 object_check_truth(struct VM_state* vm, struct Object* obj);
 static i32 execute(struct VM_state* vm);
 static void stack_print_all(struct VM_state* vm);
 
@@ -71,6 +72,16 @@ struct Object* stack_get_top(struct VM_state* vm) {
   return NULL;
 }
 
+i32 object_check_truth(struct VM_state* vm, struct Object* obj) {
+  switch (obj->type) {
+    case T_NUMBER:
+      return obj->value.number != 0;
+    default:
+      break;
+  }
+  return 0;
+}
+
 i32 execute(struct VM_state* vm) {
   for (;;) {
     switch (*(vm->ip++)) {
@@ -98,6 +109,23 @@ i32 execute(struct VM_state* vm) {
         }
         *left = *right;
         stack_pop(vm);
+        break;
+      }
+      case I_COND_JUMP: {
+        i32 offset = *(vm->ip++);
+        struct Object* obj = stack_get_top(vm);
+        assert(obj);
+
+        if (!object_check_truth(vm, obj)) {
+          stack_pop(vm);
+          vm->ip += offset;
+        }
+        stack_pop(vm);
+        break;
+      }
+      case I_JUMP: {
+        i32 offset = *(vm->ip++);
+        vm->ip += offset;
         break;
       }
       case I_ADD:
@@ -135,13 +163,14 @@ void stack_print_all(struct VM_state* vm) {
 i32 vm_exec(struct VM_state* vm, char* file, char* source) {
   Ast ast = ast_create();
   if (parser_parse(source, file, &ast) == NO_ERR) {
+    // ast_print(ast);
     if (code_gen(vm, &ast) == NO_ERR) {
+#if 1
       if (vm->program_size > 0) {
         if (!vm->ip) {
           vm->ip = &vm->program[0];
         }
         if (vm->old_program_size != vm->program_size) {
-          // ast_print(ast);
           execute(vm);
           stack_print_all(vm);
           list_shrink(vm->program, vm->program_size, 1); // Remove I_EXIT instruction
@@ -150,6 +179,7 @@ i32 vm_exec(struct VM_state* vm, char* file, char* source) {
           vm->stack_top = 0;
         }
       }
+#endif
     }
   }
   ast_free(&ast);

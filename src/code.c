@@ -11,6 +11,8 @@
 #define compile_error(fmt, ...) \
   fprintf(stderr, "compile-error: " fmt, ##__VA_ARGS__)
 
+#define UNRESOLVED_JUMP 0
+
 static i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count);
 static i32 constant_add(struct VM_state* vm, struct Object obj);
 static i32 declare_symbol(struct VM_state* vm, struct Token token, i32* address);
@@ -91,7 +93,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
             ins_add(vm, constant, ins_count);
           }
           else {
-            // TODO(lucas): Handle, give error.
+            assert(0);
           }
           break;
         }
@@ -129,6 +131,40 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
             compile_error("Missing identifier in declaration\n");
             return vm->status = ERR;
           }
+          break;
+        }
+        case T_IF: {
+          Ast if_branch = ast_get_node_at(ast, i);
+          assert(if_branch);
+          Ast true_body = ast_get_node_at(&if_branch, 0);
+          Ast false_body = ast_get_node_at(&if_branch, 1);
+          assert(true_body && false_body);
+          i32 true_body_ins_count = 0;
+          i32 false_body_ins_count = 0;
+
+          // Conditional jump at the beginning of the if expression
+          ins_add(vm, I_COND_JUMP, &true_body_ins_count);
+          i32 cond_jump_ins_index = vm->program_size;
+          ins_add(vm, UNRESOLVED_JUMP, &true_body_ins_count);
+
+          // Generate the first expression (the 'true' expression for the if statement)
+          generate(vm, &true_body, &true_body_ins_count);
+          // Resolve jump
+          list_assign(vm->program, vm->program_size, cond_jump_ins_index, true_body_ins_count);
+          *ins_count += true_body_ins_count;
+
+          // Jump at the end of the if expression body
+          ins_add(vm, I_JUMP, ins_count);
+          i32 jump_ins_index = vm->program_size;
+          ins_add(vm, UNRESOLVED_JUMP, ins_count);
+
+          // Generate the second expression of the if statement
+          generate(vm, &false_body, &false_body_ins_count);
+          // Resolve jump
+          list_assign(vm->program, vm->program_size, jump_ins_index, false_body_ins_count);
+          *ins_count += false_body_ins_count;
+
+          // printf("Cond jump: %i, Else jump: %i\n", true_body_ins_count, false_body_ins_count);
           break;
         }
         case T_ADD:

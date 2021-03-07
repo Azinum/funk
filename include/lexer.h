@@ -19,4 +19,6 @@ struct Token next_token(Lexer* l);
 
 struct Token get_token(Lexer* l);
 
+struct Token new_token(i32 type);
+
 #endif

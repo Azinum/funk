@@ -88,6 +88,49 @@ i32 simple_expr(Parser* p) {
         break;
       }
 
+      // (if (cond) (true-expr) (false-expr))
+      // (if (cond) (true-expr))
+      case T_IF: {
+        Ast* orig = p->ast;
+        struct Token if_token = token;
+        next_token(p->l); // Skip 'if'
+
+        // Condition
+        if (expression(p) != NO_ERR) {
+          parse_error("Missing condition in if expression\n");
+          return p->status;
+        }
+
+        ast_add_node(p->ast, if_token);
+
+        Ast if_branch = ast_get_last(p->ast);
+        p->ast = &if_branch;
+        ast_add_node(p->ast, new_token(T_EXPR));
+        Ast true_body = ast_get_last(p->ast);
+        p->ast = &true_body;
+
+        // True expression body
+        if (expression(p) != NO_ERR) {
+          parse_error("Missing if body\n");
+          p->ast = orig;
+          return p->status;
+        }
+
+        p->ast = &if_branch;
+        ast_add_node(p->ast, new_token(T_EXPR));
+        Ast false_body = ast_get_last(p->ast);
+        p->ast = &false_body;
+
+        // False expression body
+        if (expression(p) != NO_ERR) {
+          parse_error("Missing else body\n");
+          p->ast = orig;
+          return p->status;
+        }
+
+        p->ast = orig;
+        break;
+      }
       case T_IDENTIFIER:
       case T_NUMBER: {
         ast_add_node(p->ast, token);
