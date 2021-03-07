@@ -1,4 +1,4 @@
 // test.funk
 
-(let a (if (0) (5) (12)))
-(a)
+(if (1) (let a 5) (let b 12))
+(a b)

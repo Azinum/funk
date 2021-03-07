@@ -147,7 +147,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
           i32 cond_jump_ins_index = vm->program_size;
           ins_add(vm, UNRESOLVED_JUMP, &true_body_ins_count);
 
-          // Generate the first expression (the 'true' expression for the if statement)
+          // Generate the first expression (the 'true' expression of the if statement)
           generate(vm, &true_body, &true_body_ins_count);
           // Resolve jump
           list_assign(vm->program, vm->program_size, cond_jump_ins_index, true_body_ins_count);

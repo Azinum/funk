@@ -26,6 +26,7 @@ void object_print(FILE* fp, struct Object* obj) {
       break;
     }
     default:
+      fprintf(fp, "?");
       break;
   }
 }
