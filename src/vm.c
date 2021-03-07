@@ -29,6 +29,7 @@ inline void stack_pop(struct VM_state* vm);
 inline struct Object* stack_get(struct VM_state* vm, i32 offset);
 inline struct Object* stack_get_top(struct VM_state* vm);
 static i32 execute(struct VM_state* vm);
+static void stack_print_all(struct VM_state* vm);
 
 i32 vm_init(struct VM_state* vm) {
   vm->stack_top = 0;
@@ -39,6 +40,7 @@ i32 vm_init(struct VM_state* vm) {
   vm->program_size = 0;
   vm->ip = NULL;
   vm->status = NO_ERR;
+  vm->old_program_size = 0;
   return NO_ERR;
 }
 
@@ -70,16 +72,15 @@ struct Object* stack_get_top(struct VM_state* vm) {
 }
 
 i32 execute(struct VM_state* vm) {
-  i32* ip = vm->ip;
   for (;;) {
-    switch (*(ip++)) {
+    switch (*(vm->ip++)) {
       case I_EXIT:
         return NO_ERR;
       case I_NOP:
         break;
 
       case I_PUSH: {
-        i32 address = *(ip++);
+        i32 address = *(vm->ip++);
         assert(address >= 0 && address < vm->constant_count);
         const struct Object obj = vm->constants[address];
         stack_push(vm, obj);
@@ -88,7 +89,7 @@ i32 execute(struct VM_state* vm) {
       case I_POP:
         break;
       case I_ASSIGN: {
-        i32 address = *(ip++);
+        i32 address = *(vm->ip++);
         struct Object* left = &vm->constants[address];
         const struct Object* right = stack_get_top(vm);
         if (!right) {
@@ -119,6 +120,18 @@ done:
   return vm->status;
 }
 
+void stack_print_all(struct VM_state* vm) {
+  printf("[");
+  for (i32 i = 0; i < vm->stack_top; i++) {
+    struct Object* obj = &vm->stack[i];
+    object_print(stdout, obj);
+    if (i < vm->stack_top - 1) {
+      printf(", ");
+    }
+  }
+  printf("]\n");
+}
+
 i32 vm_exec(struct VM_state* vm, char* file, char* source) {
   Ast ast = ast_create();
   if (parser_parse(source, file, &ast) == NO_ERR) {
@@ -127,16 +140,14 @@ i32 vm_exec(struct VM_state* vm, char* file, char* source) {
         if (!vm->ip) {
           vm->ip = &vm->program[0];
         }
-        execute(vm);
-#if 0
-        ast_print(ast);
-        printf("program_size: %i, constant_count: %i, stack_top: %i\n", vm->program_size, vm->constant_count, vm->stack_top);
-#endif
-        if (vm->stack_top > 0) {
-          struct Object* top = stack_get_top(vm);
-          if (top) {
-            object_printline(stdout, top);
-          }
+        if (vm->old_program_size != vm->program_size) {
+          // ast_print(ast);
+          execute(vm);
+          stack_print_all(vm);
+          list_shrink(vm->program, vm->program_size, 1); // Remove I_EXIT instruction
+          vm->old_program_size = vm->program_size;
+          vm->ip--;
+          vm->stack_top = 0;
         }
       }
     }

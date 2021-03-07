@@ -54,6 +54,11 @@ i32 simple_expr(Parser* p) {
 
         simple_expr(p);
 
+        if (ast_child_count(p->ast) < 2) {
+          p->ast = orig;
+          parse_error("Missing parameters\n");
+          return p->status = ERR;
+        }
         p->ast = orig;  // Return to original branch
         break;
       }
@@ -72,6 +77,12 @@ i32 simple_expr(Parser* p) {
         p->ast = &assign_branch;
 
         simple_expr(p);
+
+        if (ast_child_count(p->ast) < 1) {
+          p->ast = orig; // Return to the original branch, so that we don't iterate/write on an empty branch
+          parse_error("Missing expression in assignment\n");
+          return p->status = ERR;
+        }
 
         p->ast = orig;
         break;

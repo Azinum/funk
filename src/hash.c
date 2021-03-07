@@ -19,7 +19,7 @@ struct Item {
 };
 
 static u32 hash(const Hkey key, u32 tablesize);
-static i32 linear_probe(const Htable* table, const Hkey key, u32* collision_count);
+static u32 linear_probe(const Htable* table, const Hkey key, u32* collision_count);
 static i32 key_compare(const Hkey a, const Hkey b);
 static Htable resize_table(Htable* table, u32 new_size);
 
@@ -35,9 +35,9 @@ u32 hash(const Hkey key, u32 tablesize) {
   return hash_number % tablesize;
 }
 
-i32 linear_probe(const Htable* table, const Hkey key, u32* collision_count) {
-  i32 index = hash(key, ht_get_size(table));
-  i32 counter = 0;
+u32 linear_probe(const Htable* table, const Hkey key, u32* collision_count) {
+  u32 index = hash(key, ht_get_size(table));
+  u32 counter = 0;
   for (; index < ht_get_size(table); index++, counter++) {
     if (key_compare(table->items[index].key, key) || table->items[index].used_slot == UNUSED_SLOT)
       return index;
@@ -71,7 +71,7 @@ Htable resize_table(Htable* table, u32 new_size) {
   }
 
   struct Item item;
-  for (i32 i = 0; i < ht_get_size(table); i++) {
+  for (u32 i = 0; i < ht_get_size(table); i++) {
     item = table->items[i];
     if (item.used_slot != UNUSED_SLOT) {
       ht_insert_element(&new_table, item.key, item.value);
@@ -125,8 +125,8 @@ u32 ht_insert_element(Htable* table, const Hkey key, const Hvalue value) {
   }
 
   u32 collisions = 0;
-  i32 index = linear_probe(table, key, &collisions);
-  if (index >= 0 && index < ht_get_size(table)) {
+  u32 index = linear_probe(table, key, &collisions);
+  if (index < ht_get_size(table)) {
     struct Item item = { .value = value, .used_slot = USED_SLOT };
     strncpy(item.key, key, HTABLE_KEY_SIZE);
     table->items[index] = item;
@@ -140,8 +140,8 @@ const Hvalue* ht_lookup(const Htable* table, const Hkey key) {
   assert(table != NULL);
   if (ht_get_size(table) == 0) return NULL;
   u32 collisions = 0;
-  i32 index = linear_probe(table, key, &collisions);
-  if (index >= 0 && index < ht_get_size(table)) {
+  u32 index = linear_probe(table, key, &collisions);
+  if (index < ht_get_size(table)) {
     struct Item* item = &table->items[index];
     if (item->used_slot == UNUSED_SLOT)
       return NULL;
@@ -181,8 +181,8 @@ void ht_remove_element(Htable* table, const Hkey key) {
   }
 
   u32 collisions = 0;
-  i32 index = linear_probe(table, key, &collisions);
-  if (index >= 0 && index < ht_get_size(table)) {
+  u32 index = linear_probe(table, key, &collisions);
+  if (index < ht_get_size(table)) {
     table->items[index].used_slot = UNUSED_SLOT;
     table->count--;
 

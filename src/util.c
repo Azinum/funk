@@ -37,3 +37,11 @@ i32 string_to_int(char* string, i32 length, i32* value) {
   }
   return NO_ERR;
 }
+
+i32 string_copy(char* source, char* dest, i32 length, i32 max_length) {
+  for (i32 i = 0; i < length && i < max_length; i++) {
+    *dest++ = *source++;
+  }
+  dest[length] = '\0';
+  return NO_ERR;
+}

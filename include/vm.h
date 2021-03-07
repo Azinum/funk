@@ -19,6 +19,7 @@ typedef struct VM_state {
   i32 program_size;
   i32* ip;
   i32 status;
+  i32 old_program_size;
 } VM_state;
 
 i32 vm_init(struct VM_state* vm);

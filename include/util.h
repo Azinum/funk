@@ -7,4 +7,6 @@ char* read_file(const char* path);
 
 i32 string_to_int(char* string, i32 length, i32* value);
 
+i32 string_copy(char* source, char* dest, i32 length, i32 max_length);
+
 #endif

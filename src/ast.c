@@ -48,7 +48,7 @@ i32 print_tree(const Ast ast, i32 level) {
     printf("[%i]\n", ast->value.type);
   }
 
-  for (u32 i = 0; i < ast->child_count; i++) {
+  for (i32 i = 0; i < ast->child_count; i++) {
     print_tree(ast->children[i], level + 1);
   }
 
@@ -183,7 +183,7 @@ void ast_print(const Ast ast) {
 void ast_free(Ast* ast) {
   assert(ast != NULL);
   if (is_empty(*ast)) return;
-  for (u32 i = 0; i < (*ast)->child_count; i++) {
+  for (i32 i = 0; i < (*ast)->child_count; i++) {
     ast_free(&(*ast)->children[i]);
   }
 

@@ -4,6 +4,7 @@
 #include "common.h"
 #include "ast.h"
 #include "vm.h"
+#include "util.h"
 #include "code.h"
 
 // TODO(lucas): Add at which location (line, file) the error occured
@@ -31,30 +32,27 @@ i32 constant_add(struct VM_state* vm, struct Object obj) {
 }
 
 i32 declare_symbol(struct VM_state* vm, struct Token token, i32* address) {
-  char identifier[HTABLE_KEY_SIZE] = {};
-  i32 identifier_length = (token.length < HTABLE_KEY_SIZE) ? token.length : HTABLE_KEY_SIZE;
-  strncpy(identifier, token.string, identifier_length);
+  char name[HTABLE_KEY_SIZE] = {};
+  string_copy(token.string, name, token.length, HTABLE_KEY_SIZE);
 
-  struct Object obj = (struct Object) {
-    .type = T_UNKNOWN,
-  };
-
-  const i32* found = ht_lookup(&vm->symbol_table, identifier);
+  struct Object obj = (struct Object) { .type = T_UNKNOWN, };
+  const i32* found = ht_lookup(&vm->symbol_table, name);
   if (found) {
-    *address = *found;
+    compile_error("Symbol '%.*s' has already been defined\n", token.length, token.string);
+    return ERR;
   }
   else {
     *address = constant_add(vm, obj);
-    ht_insert_element(&vm->symbol_table, identifier, *address);
+    ht_insert_element(&vm->symbol_table, name, *address);
   }
   return NO_ERR;
 }
 
 i32 get_symbol_address(struct VM_state* vm, struct Token token, i32* address) {
-  char identifier[HTABLE_KEY_SIZE] = {};
-  i32 identifier_length = (token.length < HTABLE_KEY_SIZE) ? token.length : HTABLE_KEY_SIZE;
-  strncpy(identifier, token.string, identifier_length);
-  const i32* found = ht_lookup(&vm->symbol_table, identifier);
+  char name[HTABLE_KEY_SIZE] = {};
+  string_copy(token.string, name, token.length, HTABLE_KEY_SIZE);
+
+  const i32* found = ht_lookup(&vm->symbol_table, name);
   if (!found) {
     compile_error("No such symbol '%.*s'\n", token.length, token.string);
     return vm->status = ERR;
@@ -124,7 +122,6 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
               }
             }
             else {
-              compile_error("Failed to declare symbol\n");
               return vm->status = ERR;
             }
           }
@@ -141,9 +138,9 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
           i32 op = token_to_op(token);
           assert(op != I_UNKNOWN);
           Ast op_branch = ast_get_node_at(ast, i);
-          if (!op_branch) {
-            // This really should not happen, amirite?
-            compile_error("Missing operator branch\n");
+          assert(op_branch);
+          if (ast_child_count(&op_branch) < 2) {
+            compile_error("Missing operands\n");
             return ERR;
           }
           generate(vm, &op_branch, ins_count);
@@ -159,6 +156,8 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
 }
 
 i32 code_gen(struct VM_state* vm, Ast* ast) {
+  if (ast_is_empty(*ast))
+    return NO_ERR;
   i32 ins_count = 0;
   i32 result = generate(vm, ast, &ins_count);
   ins_add(vm, I_EXIT, &ins_count);
