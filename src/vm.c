@@ -8,7 +8,7 @@
 #include "vm.h"
 
 #define runtime_error(fmt, ...) \
-  fprintf(stderr, "runtime-error: " fmt ##__VA_ARGS__)
+  fprintf(stderr, "runtime-error: " fmt, ##__VA_ARGS__)
 
 #define ARITH(VM, OP) { \
   if (VM->stack_top >= 2) { \
@@ -28,7 +28,7 @@ inline void stack_push(struct VM_state* vm, struct Object obj);
 inline void stack_pop(struct VM_state* vm);
 inline struct Object* stack_get(struct VM_state* vm, i32 offset);
 inline struct Object* stack_get_top(struct VM_state* vm);
-inline i32 object_check_truth(struct VM_state* vm, struct Object* obj);
+inline i32 object_check_true(struct VM_state* vm, struct Object* obj);
 static i32 execute(struct VM_state* vm);
 static void stack_print_all(struct VM_state* vm);
 
@@ -72,7 +72,7 @@ struct Object* stack_get_top(struct VM_state* vm) {
   return NULL;
 }
 
-i32 object_check_truth(struct VM_state* vm, struct Object* obj) {
+i32 object_check_true(struct VM_state* vm, struct Object* obj) {
   switch (obj->type) {
     case T_NUMBER:
       return obj->value.number != 0;
@@ -104,7 +104,7 @@ i32 execute(struct VM_state* vm) {
         struct Object* left = &vm->constants[address];
         const struct Object* right = stack_get_top(vm);
         if (!right) {
-          // Handle error
+          assert(0);
           return ERR;
         }
         *left = *right;
@@ -116,7 +116,7 @@ i32 execute(struct VM_state* vm) {
         struct Object* obj = stack_get_top(vm);
         assert(obj);
 
-        if (!object_check_truth(vm, obj)) {
+        if (!object_check_true(vm, obj)) {
           stack_pop(vm);
           vm->ip += offset;
         }
@@ -163,7 +163,7 @@ void stack_print_all(struct VM_state* vm) {
 i32 vm_exec(struct VM_state* vm, char* file, char* source) {
   Ast ast = ast_create();
   if (parser_parse(source, file, &ast) == NO_ERR) {
-    // ast_print(ast);
+    ast_print(ast);
     if (code_gen(vm, &ast) == NO_ERR) {
 #if 1
       if (vm->program_size > 0) {

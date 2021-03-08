@@ -15,8 +15,8 @@
 
 static i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count);
 static i32 constant_add(struct VM_state* vm, struct Object obj);
-static i32 declare_symbol(struct VM_state* vm, struct Token token, i32* address);
-static i32 get_symbol_address(struct VM_state* vm, struct Token token, i32* address);
+static i32 declare_value(struct VM_state* vm, struct Token token, i32* address);
+static i32 get_value_address(struct VM_state* vm, struct Token token, i32* address);
 static i32 token_to_op(const struct Token* token);
 static i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count);
 
@@ -33,14 +33,14 @@ i32 constant_add(struct VM_state* vm, struct Object obj) {
   return address;
 }
 
-i32 declare_symbol(struct VM_state* vm, struct Token token, i32* address) {
+i32 declare_value(struct VM_state* vm, struct Token token, i32* address) {
   char name[HTABLE_KEY_SIZE] = {};
   string_copy(token.string, name, token.length, HTABLE_KEY_SIZE);
 
   struct Object obj = (struct Object) { .type = T_UNKNOWN, };
   const i32* found = ht_lookup(&vm->symbol_table, name);
   if (found) {
-    compile_error("Symbol '%.*s' has already been defined\n", token.length, token.string);
+    compile_error("Value '%.*s' has already been defined\n", token.length, token.string);
     return ERR;
   }
   else {
@@ -50,13 +50,13 @@ i32 declare_symbol(struct VM_state* vm, struct Token token, i32* address) {
   return NO_ERR;
 }
 
-i32 get_symbol_address(struct VM_state* vm, struct Token token, i32* address) {
+i32 get_value_address(struct VM_state* vm, struct Token token, i32* address) {
   char name[HTABLE_KEY_SIZE] = {};
   string_copy(token.string, name, token.length, HTABLE_KEY_SIZE);
 
   const i32* found = ht_lookup(&vm->symbol_table, name);
   if (!found) {
-    compile_error("No such symbol '%.*s'\n", token.length, token.string);
+    compile_error("No such value '%.*s'\n", token.length, token.string);
     return vm->status = ERR;
   }
   *address = *found;
@@ -99,7 +99,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
         }
         case T_IDENTIFIER: {
           i32 address = -1;
-          if (get_symbol_address(vm, *token, &address) != NO_ERR) {
+          if (get_value_address(vm, *token, &address) != NO_ERR) {
             return vm->status;
           }
           assert(address != -1);
@@ -110,7 +110,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
         case T_LET: {
           i32 address = -1;
           if ((token = ast_get_node_value(ast, ++i))) {
-            if (declare_symbol(vm, *token, &address) == NO_ERR) {
+            if (declare_value(vm, *token, &address) == NO_ERR) {
               assert(address != -1);
               Ast decl_branch = ast_get_node_at(ast, i);
               if (decl_branch) {
@@ -153,17 +153,19 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
           list_assign(vm->program, vm->program_size, cond_jump_ins_index, true_body_ins_count);
           *ins_count += true_body_ins_count;
 
-          // Jump at the end of the if expression body
-          ins_add(vm, I_JUMP, ins_count);
-          i32 jump_ins_index = vm->program_size;
-          ins_add(vm, UNRESOLVED_JUMP, ins_count);
+          i32 false_body_child_count = ast_child_count(&false_body);
+          if (false_body_child_count > 0) {
+            // Jump at the end of the if expression body
+            ins_add(vm, I_JUMP, ins_count);
+            i32 jump_ins_index = vm->program_size;
+            ins_add(vm, UNRESOLVED_JUMP, ins_count);
 
-          // Generate the second expression of the if statement
-          generate(vm, &false_body, &false_body_ins_count);
-          // Resolve jump
-          list_assign(vm->program, vm->program_size, jump_ins_index, false_body_ins_count);
-          *ins_count += false_body_ins_count;
-
+            // Generate the second expression of the if statement
+            generate(vm, &false_body, &false_body_ins_count);
+            // Resolve jump
+            list_assign(vm->program, vm->program_size, jump_ins_index, false_body_ins_count);
+            *ins_count += false_body_ins_count;
+          }
           // printf("Cond jump: %i, Else jump: %i\n", true_body_ins_count, false_body_ins_count);
           break;
         }

@@ -121,13 +121,13 @@ i32 simple_expr(Parser* p) {
         Ast false_body = ast_get_last(p->ast);
         p->ast = &false_body;
 
-        // False expression body
-        if (expression(p) != NO_ERR) {
-          parse_error("Missing else body\n");
-          p->ast = orig;
-          return p->status;
+        if (expect(p, T_OPENPAREN)) {
+          // False expression body (is optional)
+          if (expression(p) != NO_ERR) {
+            p->ast = orig;
+            return p->status;
+          }
         }
-
         p->ast = orig;
         break;
       }
