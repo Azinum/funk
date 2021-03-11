@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "util.h"
+#include "hash.h"
 #include "object.h"
 
 i32 token_to_object(struct Token* t, struct Object* obj) {
@@ -25,6 +26,10 @@ void object_print(FILE* fp, struct Object* obj) {
       fprintf(fp, "%i", obj->value.number);
       break;
     }
+    case T_FUNCTION: {
+      fprintf(fp, "function: %i", obj->value.func.address);
+      break;
+    }
     default:
       fprintf(fp, "?");
       break;
@@ -34,4 +39,15 @@ void object_print(FILE* fp, struct Object* obj) {
 void object_printline(FILE* fp, struct Object* obj) {
   object_print(fp, obj);
   fprintf(fp, "\n");
+}
+
+void func_init(struct Function* func, struct Function* parent) {
+  func->argc = 0;
+  func->address = 0;
+  func->symbol_table = ht_create_empty();
+  func->parent = parent;
+}
+
+void func_free(struct Function* func) {
+  ht_free(&func->symbol_table);
 }

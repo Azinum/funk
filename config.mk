@@ -16,4 +16,4 @@ INC_DIR=include
 
 INC=${wildcard ${INC_DIR}/*.h}
 
-FLAGS=-o ${BUILD_DIR}/${PROG} -I${INC_DIR} -Wall -W -O2
+FLAGS=-o ${BUILD_DIR}/${PROG} -I${INC_DIR} -Wall -W -O0 -g

@@ -28,15 +28,15 @@ inline void stack_push(struct VM_state* vm, struct Object obj);
 inline void stack_pop(struct VM_state* vm);
 inline struct Object* stack_get(struct VM_state* vm, i32 offset);
 inline struct Object* stack_get_top(struct VM_state* vm);
-inline i32 object_check_true(struct VM_state* vm, struct Object* obj);
+inline i32 object_check_true(struct Object* obj);
 static i32 execute(struct VM_state* vm);
 static void stack_print_all(struct VM_state* vm);
 
 i32 vm_init(struct VM_state* vm) {
   vm->stack_top = 0;
-  vm->constants = NULL;
-  vm->constant_count = 0;
-  vm->symbol_table = ht_create_empty();
+  vm->values = NULL;
+  vm->values_count = 0;
+  func_init(&vm->global, NULL);
   vm->program = NULL;
   vm->program_size = 0;
   vm->ip = NULL;
@@ -72,7 +72,7 @@ struct Object* stack_get_top(struct VM_state* vm) {
   return NULL;
 }
 
-i32 object_check_true(struct VM_state* vm, struct Object* obj) {
+i32 object_check_true(struct Object* obj) {
   switch (obj->type) {
     case T_NUMBER:
       return obj->value.number != 0;
@@ -92,8 +92,8 @@ i32 execute(struct VM_state* vm) {
 
       case I_PUSH: {
         i32 address = *(vm->ip++);
-        assert(address >= 0 && address < vm->constant_count);
-        const struct Object obj = vm->constants[address];
+        assert(address >= 0 && address < vm->values_count);
+        const struct Object obj = vm->values[address];
         stack_push(vm, obj);
         break;
       }
@@ -101,7 +101,7 @@ i32 execute(struct VM_state* vm) {
         break;
       case I_ASSIGN: {
         i32 address = *(vm->ip++);
-        struct Object* left = &vm->constants[address];
+        struct Object* left = &vm->values[address];
         const struct Object* right = stack_get_top(vm);
         if (!right) {
           assert(0);
@@ -116,7 +116,7 @@ i32 execute(struct VM_state* vm) {
         struct Object* obj = stack_get_top(vm);
         assert(obj);
 
-        if (!object_check_true(vm, obj)) {
+        if (!object_check_true(obj)) {
           stack_pop(vm);
           vm->ip += offset;
         }
@@ -127,6 +127,19 @@ i32 execute(struct VM_state* vm) {
         i32 offset = *(vm->ip++);
         vm->ip += offset;
         break;
+      }
+      case I_CALL: {
+        i32 address = *(vm->ip++);
+        assert(address >= 0 && address < vm->program_size);
+        i32* old_ip = vm->ip; // Save the current instruction pointer position
+        // printf("Jumping to address: %i, %p\n", address, old_ip);
+        vm->ip = &vm->program[address];
+        execute(vm);  // Execute function
+        vm->ip = old_ip; // Restore the old instruction pointer
+        break;
+      }
+      case I_RETURN: {
+        return NO_ERR;
       }
       case I_ADD:
         ARITH(vm, +);
@@ -163,7 +176,8 @@ void stack_print_all(struct VM_state* vm) {
 i32 vm_exec(struct VM_state* vm, char* file, char* source) {
   Ast ast = ast_create();
   if (parser_parse(source, file, &ast) == NO_ERR) {
-    ast_print(ast);
+    // ast_print(ast);
+#if 1
     if (code_gen(vm, &ast) == NO_ERR) {
 #if 1
       if (vm->program_size > 0) {
@@ -173,7 +187,7 @@ i32 vm_exec(struct VM_state* vm, char* file, char* source) {
         if (vm->old_program_size != vm->program_size) {
           execute(vm);
           stack_print_all(vm);
-          list_shrink(vm->program, vm->program_size, 1); // Remove I_EXIT instruction
+          list_shrink(vm->program, vm->program_size, 1); // Remove I_RETURN instruction
           vm->old_program_size = vm->program_size;
           vm->ip--;
           vm->stack_top = 0;
@@ -181,14 +195,25 @@ i32 vm_exec(struct VM_state* vm, char* file, char* source) {
       }
 #endif
     }
+#endif
   }
   ast_free(&ast);
   return NO_ERR;
 }
 
 void vm_free(struct VM_state* vm) {
-  list_free(vm->constants, vm->constant_count);
-  ht_free(&vm->symbol_table);
+  for (i32 i = 0; i < vm->values_count; i++) {
+    struct Object* obj = &vm->values[i];
+    switch (obj->type) {
+      case T_FUNCTION:
+        func_free(&obj->value.func);
+        break;
+      default:
+        break;
+    }
+  }
+  list_free(vm->values, vm->values_count);
+  func_free(&vm->global);
   list_free(vm->program, vm->program_size);
   vm->ip = NULL;
 }

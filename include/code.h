@@ -13,11 +13,15 @@ enum Instruction {
   I_ASSIGN,
   I_COND_JUMP,
   I_JUMP,
+  I_RETURN,
+  I_CALL,
 
   I_ADD,
   I_SUB,
   I_MUL,
   I_DIV,
+
+  MAX_INS,
 };
 
 struct VM_state;

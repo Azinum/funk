@@ -41,6 +41,9 @@ struct Token read_symbol(Lexer* l) {
   else if (!strncmp(l->token.string, TOKEN_IF, l->token.length)) {
     l->token.type = T_IF;
   }
+  else if (!strncmp(l->token.string, TOKEN_DEFINE, l->token.length)) {
+    l->token.type = T_DEFINE;
+  }
   else {
     l->token.type = T_IDENTIFIER;
   }

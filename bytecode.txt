@@ -1,0 +1,23 @@
+0000 jump          3
+0002 push          2 (value = 5)
+0004 return
+0005 jump          6
+0007 push          4 (value = 2)
+0009 call          2
+0011 add
+0012 return
+0013 jump          3
+0015 call          2
+0017 return
+0018 jump          11
+0020 jump          3
+0022 push          8 (value = 5)
+0024 return
+0025 call          15
+0027 call          22
+0029 add
+0030 return
+0031 call          20
+0033 assign        0
+0035 push          0 (value = ?)
+0037 return

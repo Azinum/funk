@@ -12,9 +12,9 @@
 typedef struct VM_state {
   struct Object stack[MAX_STACK];
   i32 stack_top;
-  struct Object* constants;
-  i32 constant_count;
-  Htable symbol_table;
+  struct Object* values;
+  i32 values_count;
+  struct Function global;
   i32* program;
   i32 program_size;
   i32* ip;

@@ -14,6 +14,7 @@ static void parser_init(Parser* parser, Lexer* lexer, Ast* ast);
 static i32 expect(Parser* p, i32 type);
 static i32 end(Parser* p);
 static i32 expr_end(Parser* p);
+static i32 func_params(Parser* p);
 static i32 simple_expr(Parser* p);
 static i32 expression(Parser* p);
 static i32 expressions(Parser* p);
@@ -36,6 +37,26 @@ i32 expr_end(Parser* p) {
   return expect(p, T_CLOSEDPAREN);
 }
 
+i32 func_params(Parser* p) {
+  for (;;) {
+    struct Token token = get_token(p->l);
+    switch (token.type) {
+      case T_IDENTIFIER: {
+        ast_add_node(p->ast, token);
+        next_token(p->l);
+        break;
+      }
+      case T_CLOSEDPAREN: {
+        return NO_ERR;
+      }
+      default:
+        parse_error("Expected identifier in parameter list\n");
+        return p->status = ERR;
+    }
+  }
+  return NO_ERR;
+}
+
 // Identifier, number, string, operator
 // operator '(' expr ')' | symbol
 i32 simple_expr(Parser* p) {
@@ -54,9 +75,10 @@ i32 simple_expr(Parser* p) {
 
         simple_expr(p);
 
-        if (ast_child_count(p->ast) < 2) {
+        i32 child_count = ast_child_count(p->ast);
+        if (child_count != 2) {
           p->ast = orig;
-          parse_error("Missing parameters\n");
+          parse_error("Invalid number of parameters (got %i, should be %i)\n", child_count, 2);
           return p->status = ERR;
         }
         p->ast = orig;  // Return to original branch
@@ -92,18 +114,23 @@ i32 simple_expr(Parser* p) {
       // (if (cond) (true-expr))
       case T_IF: {
         Ast* orig = p->ast;
-        struct Token if_token = token;
+        ast_add_node(p->ast, token); // Add 'if'
         next_token(p->l); // Skip 'if'
+
+        Ast if_branch = ast_get_last(p->ast);
+        p->ast = &if_branch;
+
+        ast_add_node(p->ast, new_token(T_EXPR));
+        Ast cond = ast_get_last(p->ast);
+        p->ast = &cond;
 
         // Condition
         if (expression(p) != NO_ERR) {
+          p->ast = orig;
           parse_error("Missing condition in if expression\n");
           return p->status;
         }
 
-        ast_add_node(p->ast, if_token);
-
-        Ast if_branch = ast_get_last(p->ast);
         p->ast = &if_branch;
         ast_add_node(p->ast, new_token(T_EXPR));
         Ast true_body = ast_get_last(p->ast);
@@ -128,6 +155,54 @@ i32 simple_expr(Parser* p) {
             return p->status;
           }
         }
+        p->ast = orig;
+        break;
+      }
+      // (define name (args) (body))
+      case T_DEFINE: {
+        Ast* orig = p->ast;
+        ast_add_node(p->ast, token); // Add 'define'
+        token = next_token(p->l); // Skip 'define'
+
+        if (!expect(p, T_IDENTIFIER)) {
+          parse_error("Expected identifier\n");
+          return p->status = ERR;
+        }
+
+        Ast define_branch = ast_get_last(p->ast);
+        p->ast = &define_branch;
+
+        ast_add_node(p->ast, token);  // Add function identifier
+        next_token(p->l); // Skip identifier
+
+        if (!expect(p, T_OPENPAREN)) {
+          p->ast = orig;
+          parse_error("Expected parameter list in function definition\n");
+          return p->status = ERR;
+        }
+        next_token(p->l); // Skip '('
+
+        p->ast = &define_branch;
+        ast_add_node(p->ast, new_token(T_EXPR));
+        Ast args = ast_get_last(p->ast);
+        p->ast = &args;
+
+        func_params(p);  // Parse function parameters
+
+        if (!expect(p, T_CLOSEDPAREN)) {
+          p->ast = orig;
+          parse_error("Missing closing ')' parenthesis in parameter list\n");
+          return p->status = ERR;
+        }
+        next_token(p->l); // Skip ')'
+
+        p->ast = &define_branch;
+        ast_add_node(p->ast, new_token(T_EXPR));
+        Ast body = ast_get_last(p->ast);
+        p->ast = &body;
+
+        simple_expr(p); // Parse function body
+
         p->ast = orig;
         break;
       }
