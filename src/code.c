@@ -13,11 +13,6 @@
 
 #define UNRESOLVED_JUMP 0
 
-struct Function_state {
-  struct Function* func;
-  Htable args;
-};
-
 struct Ins_desc;
 
 typedef void (*ins_desc_callback)(struct VM_state* vm, struct Ins_desc* ins_desc, i32 instruction, i32 arg_index, FILE* fp);
@@ -31,11 +26,11 @@ typedef struct Ins_desc {
 // Code generating functions
 static i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count);
 static i32 value_add(struct VM_state* vm, struct Object obj);
-static i32 define_value(struct VM_state* vm, struct Token token, i32* address);
-static i32 get_value_address(struct VM_state* vm, struct Token token, i32* address);
+static i32 define_value(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
+static i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 token_to_op(const struct Token* token);
-static i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, i32* ins_count);
-static i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count);
+static i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, struct Function_state* fs, i32* ins_count);
+static i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count);
 
 // Functions for writing byte-code descriptions to files
 // TODO(lucas): Seperate this out to another file
@@ -119,36 +114,45 @@ i32 value_add(struct VM_state* vm, struct Object obj) {
   return address;
 }
 
-i32 define_value(struct VM_state* vm, struct Token token, i32* address) {
-  struct Function* func = &vm->global;
+i32 define_value(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
   char name[HTABLE_KEY_SIZE] = {};
   string_copy(token.string, name, token.length, HTABLE_KEY_SIZE);
 
   struct Object obj = (struct Object) { .type = T_UNKNOWN, };
-  const i32* found = ht_lookup(&func->symbol_table, name);
+  const i32* found = ht_lookup(&fs->symbol_table, name);
   if (found) {
     compile_error("Value '%.*s' has already been defined\n", token.length, token.string);
     return ERR;
   }
   else {
     *address = value_add(vm, obj);
-    ht_insert_element(&func->symbol_table, name, *address);
+    ht_insert_element(&fs->symbol_table, name, *address);
   }
   // printf("Define value: '%.*s' -> addr: %i\n", token.length, token.string, *address);
   return NO_ERR;
 }
 
-i32 get_value_address(struct VM_state* vm, struct Token token, i32* address) {
-  struct Function* func = &vm->global;
+i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
   char name[HTABLE_KEY_SIZE] = {};
   string_copy(token.string, name, token.length, HTABLE_KEY_SIZE);
 
-  const i32* found = ht_lookup(&func->symbol_table, name);
-  if (!found) {
+  i32 found_value = 0;
+  do {
+    const i32* found = ht_lookup(&fs->symbol_table, name);
+    if (found) {
+      found_value = 1;
+      *address = *found;
+      break;
+    }
+    if (fs == &vm->fs_global) {
+      break;
+    }
+  } while ((fs = fs->parent) != NULL);
+
+  if (!found_value) {
     compile_error("No such value '%.*s'\n", token.length, token.string);
     return vm->status = ERR;
   }
-  *address = *found;
   return NO_ERR;
 }
 
@@ -166,20 +170,21 @@ i32 token_to_op(const struct Token* token) {
   return I_UNKNOWN;
 }
 
-i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, i32* ins_count) {
-  struct Function* global = &vm->global;
-
+i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, struct Function_state* fs, i32* ins_count) {
   // Allocate a new value for this function
   i32 address = -1;
-  if (define_value(vm, name, &address) != NO_ERR) {
+  if (define_value(vm, name, fs, &address) != NO_ERR) {
     return vm->status = ERR;
   }
   assert(address != -1);
   struct Object* func_value = &vm->values[address];
   func_value->type = T_FUNCTION;
-  func_init(&func_value->value.func, global);
+  func_init(&func_value->value.func, fs->func /* parent */);
 
-  // Jump the function body
+  struct Function_state new_fs;
+  func_state_init(&new_fs, fs, &func_value->value.func);
+
+  // To skip the function body
   ins_add(vm, I_JUMP, ins_count);
   i32 func_jump_ins_index = vm->program_size;
   ins_add(vm, UNRESOLVED_JUMP, ins_count);
@@ -193,12 +198,14 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body
   //
 
   // Generate the function body
-  generate(vm, body, &func_ins_count);
+  generate(vm, body, &new_fs, &func_ins_count);
   // Add return instruction at the end of the function
   ins_add(vm, I_RETURN, &func_ins_count);
 
   list_assign(vm->program, vm->program_size, func_jump_ins_index, func_ins_count);
   *ins_count += func_ins_count;
+
+  func_state_free(&new_fs); // Okay, we are done with the compile-time function state for static checks
   return NO_ERR;
 }
 
@@ -208,7 +215,7 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body
 // should be done after we have successfully generated the byte code
 // (or in some other way keep track of what new changes the code generator did).
 // This is so that in case of an error, we can do a rollback to the previous state.
-i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
+i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count) {
   assert(ast);
   i32 child_count = ast_child_count(ast);
   struct Token* token = NULL;
@@ -229,7 +236,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
         }
         case T_IDENTIFIER: {
           i32 address = -1;
-          if (get_value_address(vm, *token, &address) != NO_ERR) {
+          if (get_value_address(vm, *token, fs, &address) != NO_ERR) {
             return vm->status;
           }
           assert(address != -1);
@@ -247,11 +254,11 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
         case T_LET: {
           i32 address = -1;
           if ((token = ast_get_node_value(ast, ++i))) {
-            if (define_value(vm, *token, &address) == NO_ERR) {
+            if (define_value(vm, *token, fs, &address) == NO_ERR) {
               assert(address != -1);
               Ast decl_branch = ast_get_node_at(ast, i);
               if (decl_branch) {
-                generate(vm, &decl_branch, ins_count);
+                generate(vm, &decl_branch, fs, ins_count);
                 ins_add(vm, I_ASSIGN, ins_count);
                 ins_add(vm, address, ins_count);
                 break;
@@ -277,7 +284,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
           Ast true_body = ast_get_node_at(&if_branch, 1);
           Ast false_body = ast_get_node_at(&if_branch, 2);
           assert(cond && true_body && false_body);
-          generate(vm, &cond, ins_count);
+          generate(vm, &cond, fs, ins_count);
 
           i32 true_body_ins_count = 0;
           i32 false_body_ins_count = 0;
@@ -288,7 +295,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
           ins_add(vm, UNRESOLVED_JUMP, &true_body_ins_count);
 
           // Generate the first expression (the 'true' expression of the if statement)
-          generate(vm, &true_body, &true_body_ins_count);
+          generate(vm, &true_body, fs, &true_body_ins_count);
           // Resolve jump
           list_assign(vm->program, vm->program_size, cond_jump_ins_index, true_body_ins_count);
           *ins_count += true_body_ins_count;
@@ -301,7 +308,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
             ins_add(vm, UNRESOLVED_JUMP, ins_count);
 
             // Generate the second expression of the if statement
-            generate(vm, &false_body, &false_body_ins_count);
+            generate(vm, &false_body, fs, &false_body_ins_count);
             // Resolve jump
             list_assign(vm->program, vm->program_size, jump_ins_index, false_body_ins_count);
             *ins_count += false_body_ins_count;
@@ -315,7 +322,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
             Ast params = ast_get_node_at(&func, 1);
             Ast body = ast_get_node_at(&func, 2);
             assert(params && body);
-            if (generate_func(vm, *token, &params, &body, ins_count) != NO_ERR) {
+            if (generate_func(vm, *token, &params, &body, fs, ins_count) != NO_ERR) {
               return vm->status;
             }
           }
@@ -336,7 +343,7 @@ i32 generate(struct VM_state* vm, Ast* ast, i32* ins_count) {
             compile_error("Missing operands\n");
             return ERR;
           }
-          generate(vm, &op_branch, ins_count);
+          generate(vm, &op_branch, fs, ins_count);
           ins_add(vm, op, ins_count);
           break;
         }
@@ -352,7 +359,7 @@ i32 code_gen(struct VM_state* vm, Ast* ast) {
   if (ast_is_empty(*ast))
     return NO_ERR;
   i32 ins_count = 0;
-  i32 result = generate(vm, ast, &ins_count);
+  i32 result = generate(vm, ast, &vm->fs_global, &ins_count);
   ins_add(vm, I_RETURN, &ins_count);
   output_byte_code(vm, "bytecode.txt");
   return result;

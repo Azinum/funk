@@ -17,6 +17,7 @@ i32 funk_start(i32 argc, char** argv) {
 #if 0
   user_input(&vm);
 #else
+  (void)user_input;
   char* path = "test.funk";
   char* source = read_file(path);
   if (source) {

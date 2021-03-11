@@ -1,18 +1,28 @@
 // test.funk
 
-(let result
-  (define a() 5)
+(let a 2)
 
-  (define b() + 2 a)
-
-  (define c() a)
-
-  (define test()
-    (define t2() 5)
-    (+ c t2)
-  )
-
-  test
+(define test()
+  (let a 7)
+  (let b 3)
+  (+ a b)
 )
 
-(result)
+(test)
+
+// (let result
+//   (define a() 5)
+// 
+//   (define b() + 2 a)
+// 
+//   (define c() a)
+// 
+//   (define test()
+//     (define t2() 5)
+//     (+ c t2)
+//   )
+// 
+//   test
+// )
+// 
+// (result)

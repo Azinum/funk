@@ -44,10 +44,22 @@ void object_printline(FILE* fp, struct Object* obj) {
 void func_init(struct Function* func, struct Function* parent) {
   func->argc = 0;
   func->address = 0;
-  func->symbol_table = ht_create_empty();
   func->parent = parent;
 }
 
 void func_free(struct Function* func) {
-  ht_free(&func->symbol_table);
+  (void)func;
+}
+
+void func_state_init(struct Function_state* fs, struct Function_state* parent, struct Function* func) {
+  fs->func = func;
+  fs->parent = parent;
+  fs->symbol_table = ht_create_empty();
+  fs->args = ht_create_empty();
+}
+
+void func_state_free(struct Function_state* fs) {
+  fs->func = NULL;
+  ht_free(&fs->symbol_table);
+  ht_free(&fs->args);
 }
