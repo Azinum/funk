@@ -40,9 +40,10 @@ i32 vm_init(struct VM_state* vm) {
   func_state_init(&vm->fs_global, NULL, &vm->global);
   vm->program = NULL;
   vm->program_size = 0;
-  vm->ip = NULL;
-  vm->status = NO_ERR;
   vm->old_program_size = 0;
+  vm->ip = NULL;
+  vm->saved_ip = 0;
+  vm->status = NO_ERR;
   return NO_ERR;
 }
 
@@ -85,7 +86,8 @@ i32 object_check_true(struct Object* obj) {
 
 i32 execute(struct VM_state* vm) {
   for (;;) {
-    switch (*(vm->ip++)) {
+    i32 ins = *(vm->ip++);
+    switch (ins) {
       case I_EXIT:
         return NO_ERR;
       case I_NOP:
@@ -94,8 +96,13 @@ i32 execute(struct VM_state* vm) {
       case I_PUSH: {
         i32 address = *(vm->ip++);
         assert(address >= 0 && address < vm->values_count);
-        const struct Object obj = vm->values[address];
+        struct Object obj = vm->values[address];
         stack_push(vm, obj);
+#if 0
+        printf("I_PUSH: %i (value = ", address);
+        object_print(stdout, &obj);
+        printf(")\n");
+#endif
         break;
       }
       case I_POP:
@@ -133,7 +140,6 @@ i32 execute(struct VM_state* vm) {
         i32 address = *(vm->ip++);
         assert(address >= 0 && address < vm->program_size);
         i32* old_ip = vm->ip; // Save the current instruction pointer position
-        // printf("Jumping to address: %i, %p\n", address, old_ip);
         vm->ip = &vm->program[address];
         execute(vm);  // Execute function
         vm->ip = old_ip; // Restore the old instruction pointer
@@ -155,6 +161,8 @@ i32 execute(struct VM_state* vm) {
         ARITH(vm, /);
         break;
       default:
+        runtime_error("Tried to execute bad instruction (%i)\n", ins);
+        assert(0);
         return vm->status;
     }
   }
@@ -186,11 +194,14 @@ i32 vm_exec(struct VM_state* vm, char* file, char* source) {
           vm->ip = &vm->program[0];
         }
         if (vm->old_program_size != vm->program_size) {
+          vm->ip = &vm->program[vm->saved_ip];
           execute(vm);
           stack_print_all(vm);
           list_shrink(vm->program, vm->program_size, 1); // Remove I_RETURN instruction
           vm->old_program_size = vm->program_size;
-          vm->ip--;
+          // NOTE(lucas): The instruction pointer probably got invalidated
+          // because the program was moved to another location (this can happen when generating new code/modifying the program list with list_shrink e.t.c.)
+          vm->saved_ip = (i32)(&vm->program[vm->program_size] - &vm->program[0]); // Save the instruction pointer index, and restore it in the next execution.
           vm->stack_top = 0;
         }
       }

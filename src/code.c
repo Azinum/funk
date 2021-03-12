@@ -86,7 +86,9 @@ void output_byte_code(struct VM_state* vm, const char* path) {
       fprintf(fp, "%.4i %s\n", i, desc.name);
     }
   }
-  fclose(fp);
+  if (fp != stdout && fp != stderr) {
+    fclose(fp);
+  }
 }
 
 void desc_push_ins(struct VM_state* vm, struct Ins_desc* ins_desc, i32 instruction, i32 arg_index, FILE* fp) {
@@ -116,7 +118,7 @@ i32 value_add(struct VM_state* vm, struct Object obj) {
 
 i32 define_value(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
   char name[HTABLE_KEY_SIZE] = {};
-  string_copy(token.string, name, token.length, HTABLE_KEY_SIZE);
+  string_copy(name, token.string, token.length, HTABLE_KEY_SIZE);
 
   struct Object obj = (struct Object) { .type = T_UNKNOWN, };
   const i32* found = ht_lookup(&fs->symbol_table, name);
@@ -134,7 +136,7 @@ i32 define_value(struct VM_state* vm, struct Token token, struct Function_state*
 
 i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
   char name[HTABLE_KEY_SIZE] = {};
-  string_copy(token.string, name, token.length, HTABLE_KEY_SIZE);
+  string_copy(name, token.string, token.length, HTABLE_KEY_SIZE);
 
   i32 found_value = 0;
   do {

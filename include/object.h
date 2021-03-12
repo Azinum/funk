@@ -23,6 +23,7 @@ typedef struct Object {
   union {
     i32 number;
     struct Function func;
+    struct Buffer* buffer;
   } value;
   i32 type;
 } Object;

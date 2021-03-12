@@ -24,6 +24,7 @@ i32 funk_start(i32 argc, char** argv) {
     vm_exec(&vm, path, source);
     free(source);
   }
+  user_input(&vm);
 #endif
   vm_free(&vm);
   assert(memory_total() == 0);

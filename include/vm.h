@@ -6,6 +6,7 @@
 #include "object.h"
 #include "hash.h"
 #include "list.h"
+#include "buffer.h"
 
 #define MAX_STACK 512
 
@@ -18,9 +19,10 @@ typedef struct VM_state {
   struct Function_state fs_global;
   i32* program;
   i32 program_size;
-  i32* ip;
-  i32 status;
   i32 old_program_size;
+  i32* ip;
+  i32 saved_ip;
+  i32 status;
 } VM_state;
 
 i32 vm_init(struct VM_state* vm);
