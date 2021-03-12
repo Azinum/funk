@@ -3,4 +3,12 @@
 // (let x (define y() 5)) // BUG!
 // (let x (let y 5)) // BUG!
 
+(let a 2)
 
+(define test()
+  (let a 7)
+  (let b 3)
+  (+ a b)
+)
+
+(test)

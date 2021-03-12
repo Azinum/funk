@@ -1,9 +1,22 @@
-0000 push          0 (value = 2)
-0002 push          1 (value = 3)
-0004 push          3 (value = 45)
-0006 assign        2
-0008 push          2 (value = 45)
-0010 return
-0011 push          2 (value = 45)
-0013 push          2 (value = 45)
-0015 return
+0000 push          1 (value = 2)
+0002 assign        0
+0004 jump          14
+0006 push          4 (value = 7)
+0008 assign        3
+0010 push          6 (value = 3)
+0012 assign        5
+0014 push          3 (value = 7)
+0016 push          5 (value = 3)
+0018 add
+0019 return
+0020 call          6
+0022 push          7 (value = 2)
+0024 push          0 (value = 2)
+0026 add
+0027 push          8 (value = 2)
+0029 push          9 (value = 2)
+0031 add
+0032 push          0 (value = 2)
+0034 push          0 (value = 2)
+0036 add
+0037 return

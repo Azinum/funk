@@ -207,6 +207,9 @@ i32 vm_exec(struct VM_state* vm, char* file, char* source) {
       }
 #endif
     }
+    else {
+      vm->status = NO_ERR;
+    }
 #endif
   }
   ast_free(&ast);

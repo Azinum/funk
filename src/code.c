@@ -23,6 +23,9 @@ typedef struct Ins_desc {
   ins_desc_callback callback;
 } Ins_desc;
 
+static i32 num_values_added = 0;
+static i32 old_program_size = 0;
+
 // Code generating functions
 static i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count);
 static i32 value_add(struct VM_state* vm, struct Object obj);
@@ -113,6 +116,7 @@ i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count) {
 i32 value_add(struct VM_state* vm, struct Object obj) {
   i32 address = vm->values_count;
   list_push(vm->values, vm->values_count, obj);
+  num_values_added++;
   return address;
 }
 
@@ -124,7 +128,7 @@ i32 define_value(struct VM_state* vm, struct Token token, struct Function_state*
   const i32* found = ht_lookup(&fs->symbol_table, name);
   if (found) {
     compile_error("Value '%.*s' has already been defined\n", token.length, token.string);
-    return ERR;
+    return vm->status = ERR;
   }
   else {
     *address = value_add(vm, obj);
@@ -354,14 +358,24 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
       }
     }
   }
-  return NO_ERR;
+  return vm->status;
 }
 
 i32 code_gen(struct VM_state* vm, Ast* ast) {
   if (ast_is_empty(*ast))
     return NO_ERR;
+  num_values_added = 0;
+  old_program_size = vm->program_size;
   i32 ins_count = 0;
   i32 result = generate(vm, ast, &vm->fs_global, &ins_count);
+
+  if (result != NO_ERR) { // Error occured, perform rollback
+    i32 diff = vm->program_size - old_program_size;
+    list_shrink(vm->program, vm->program_size, diff);
+    assert(num_values_added < vm->values_count);
+    list_shrink(vm->values, vm->values_count, num_values_added);
+    return result;
+  }
   ins_add(vm, I_RETURN, &ins_count);
   output_byte_code(vm, "bytecode.txt");
   return result;
