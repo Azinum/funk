@@ -7,7 +7,23 @@
 
 #define MAX_INPUT 512
 #define PROMPT "> "
+
+#ifndef NO_READLINE
+
+#include <readline/readline.h>
+#include <readline/history.h>
+
+#define readinput(buffer) ((buffer = readline(PROMPT)) != NULL)
+#define addhistory(buffer) (buffer[0] != '\0' ? add_history(buffer) : (void)0)
+#define freebuffer(buffer) (free(buffer))
+
+#else
+
 #define readinput(buffer) (fprintf(stdout, "%s", PROMPT), fgets(buffer, MAX_INPUT, stdin) != NULL)
+#define addhistory(buffer)
+#define freebuffer(buffer)
+
+#endif
 
 static i32 user_input(struct VM_state* vm);
 
@@ -41,6 +57,8 @@ i32 user_input(struct VM_state* vm) {
       if ((status = vm_exec(vm, file, buffer)) != NO_ERR) {
         return status;
       }
+      addhistory(buffer);
+      freebuffer(buffer);
     }
     else {
       break;

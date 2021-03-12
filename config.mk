@@ -16,4 +16,6 @@ INC_DIR=include
 
 INC=${wildcard ${INC_DIR}/*.h}
 
-FLAGS=-o ${BUILD_DIR}/${PROG} -I${INC_DIR} -O2 -Wall
+LIBS=-lreadline
+
+FLAGS=-o ${BUILD_DIR}/${PROG} ${LIBS} -I${INC_DIR} -O2 -Wall
