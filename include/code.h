@@ -22,6 +22,10 @@ enum Instruction {
   I_MUL,
   I_DIV,
 
+  I_LT,
+  I_GT,
+  I_EQ,
+
   MAX_INS,
 };
 

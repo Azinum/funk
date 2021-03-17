@@ -197,6 +197,9 @@ i32 token_to_op(const struct Token* token) {
     OP_CASE(SUB);
     OP_CASE(MUL);
     OP_CASE(DIV);
+    OP_CASE(LT);
+    OP_CASE(GT);
+    OP_CASE(EQ);
     default:
       break;
   }
@@ -386,7 +389,10 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
         case T_ADD:
         case T_SUB:
         case T_MUL:
-        case T_DIV: {
+        case T_DIV:
+        case T_LT:
+        case T_GT:
+        case T_EQ: {
           i32 op = token_to_op(token);
           assert(op != I_UNKNOWN);
           Ast op_branch = ast_get_node_at(ast, i);

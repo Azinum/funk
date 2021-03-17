@@ -1,7 +1,5 @@
 // test.funk
 
-(define rec(n)
-  (if (n)
-    (rec(- n 1))
-    (n))
-)
+(define fac (x) (if (== x 0) (1) (* x (fac (- x 1)))))
+
+(+ (* (fac (5)) 3) 17)

@@ -1,13 +1,21 @@
-0000 jump          16
+0000 jump          22
 0002 push_arg      0
-0004 cond_jump     9
-0006 push_arg      0
-0008 push          1 (value = 1)
-0010 sub
-0011 call          0 (value = function: 2)
-0013 jump          2
+0004 push          1 (value = 0)
+0006 (null)
+0007 cond_jump     4
+0009 push          2 (value = 1)
+0011 jump          10
+0013 push_arg      0
 0015 push_arg      0
-0017 return
-0018 push          2 (value = 1000)
+0017 push          3 (value = 1)
+0019 sub
 0020 call          0 (value = function: 2)
-0022 return
+0022 mul
+0023 return
+0024 push          4 (value = 5)
+0026 call          0 (value = function: 2)
+0028 push          5 (value = 3)
+0030 mul
+0031 push          6 (value = 17)
+0033 add
+0034 return

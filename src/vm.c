@@ -193,6 +193,15 @@ i32 execute(struct VM_state* vm) {
       case I_DIV:
         ARITH(vm, /);
         break;
+      case I_LT:
+        ARITH(vm, <);
+        break;
+      case I_GT:
+        ARITH(vm, >);
+        break;
+      case I_EQ:
+        ARITH(vm, ==);
+        break;
       default:
         runtime_error("Tried to execute bad instruction (%i)\n", ins);
         assert(0);

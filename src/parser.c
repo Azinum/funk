@@ -66,7 +66,10 @@ i32 simple_expr(Parser* p) {
       case T_ADD:
       case T_SUB:
       case T_MUL:
-      case T_DIV: {
+      case T_DIV:
+      case T_LT:
+      case T_GT:
+      case T_EQ: {
         Ast* orig = p->ast;
         Ast op_branch = ast_add_node(p->ast, token);  // Add operator
         next_token(p->l); // Skip operator
