@@ -34,6 +34,7 @@ static void stack_print_all(struct VM_state* vm);
 
 i32 vm_init(struct VM_state* vm) {
   vm->stack_top = 0;
+  vm->stack_base = 0;
   vm->values = NULL;
   vm->values_count = 0;
   func_init(&vm->global, NULL);
@@ -50,6 +51,10 @@ i32 vm_init(struct VM_state* vm) {
 void stack_push(struct VM_state* vm, struct Object obj) {
   if (vm->stack_top < MAX_STACK) {
     vm->stack[vm->stack_top++] = obj;
+  }
+  else {
+    runtime_error("Stack overflow, reached stack limit of %i!\n", MAX_STACK);
+    vm->status = ERR;
   }
 }
 
@@ -85,6 +90,7 @@ i32 object_check_true(struct Object* obj) {
 }
 
 i32 execute(struct VM_state* vm) {
+  i32 stack_base = vm->stack_base;
   for (;;) {
     i32 ins = *(vm->ip++);
     switch (ins) {
@@ -102,7 +108,10 @@ i32 execute(struct VM_state* vm) {
       }
       case I_PUSH_ARG: {
         i32 address = *(vm->ip++);
-        // printf("I_PUSH_ARG: %i\n", address);
+        i32 index = stack_base + address;
+        assert(index <= vm->stack_top);
+        struct Object obj = vm->stack[index];
+        stack_push(vm, obj);
         break;
       }
       case I_POP:
@@ -112,8 +121,13 @@ i32 execute(struct VM_state* vm) {
         struct Object* left = &vm->values[address];
         const struct Object* right = stack_get_top(vm);
         if (!right) {
+#if 0
           assert(0);
           return vm->status = ERR;
+#else
+          left->type = T_UNKNOWN;
+          break;
+#endif
         }
         *left = *right;
         stack_pop(vm);
@@ -144,10 +158,24 @@ i32 execute(struct VM_state* vm) {
           runtime_error("Attempted to call a value which is not a function\n");
           return vm->status = ERR;
         }
+        i32 argc = obj->value.func.argc;
+        if (vm->stack_top < argc) {
+          runtime_error("Invalid number of arguments in function call (should be %i)\n", obj->value.func.argc);
+          return vm->status = ERR;
+        }
+        i32 old_stack_top = vm->stack_top; // Save the stack pointer so that we can figure out how many return values that the function produced
+        i32 base = vm->stack_base = vm->stack_top - argc;
+
         i32* old_ip = vm->ip; // Save the current instruction pointer position
         vm->ip = &vm->program[obj->value.func.address];
         execute(vm);  // Execute function
         vm->ip = old_ip; // Restore the old instruction pointer
+
+        i32 ret_value_count = vm->stack_top - old_stack_top; // TODO(lucas): Implement use of multiple return values
+        if (ret_value_count > 0) {
+          vm->stack[base] = *stack_get_top(vm);
+          vm->stack_top = base + 1;
+        }
         break;
       }
       case I_RETURN: {
@@ -190,7 +218,7 @@ void stack_print_all(struct VM_state* vm) {
 i32 vm_exec(struct VM_state* vm, char* file, char* source) {
   Ast ast = ast_create();
   if (parser_parse(source, file, &ast) == NO_ERR) {
-    ast_print(ast);
+    // ast_print(ast);
 #if 1
     if (code_gen(vm, &ast) == NO_ERR) {
 #if 1

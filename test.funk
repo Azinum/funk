@@ -1,7 +1,7 @@
 // test.funk
 
-// (let x (define y() 5)) // BUG!
-// (let x (let y 5)) // BUG!
-
-(define test(a b) + a b)
-
+(define rec(n)
+  (if (n)
+    (rec(- n 1))
+    (n))
+)

@@ -151,7 +151,6 @@ static i32 define_arg(struct VM_state* vm, struct Token token, struct Function_s
     ht_insert_element(&fs->args, name, *address);
   }
   return NO_ERR;
-
 }
 
 i32 get_arg_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
@@ -229,7 +228,8 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body
   i32 func_ins_count = 0;
 
   // Parameters
-  for (i32 i = 0; i < ast_child_count(params); i++) {
+  i32 param_count = ast_child_count(params);
+  for (i32 i = 0; i < param_count; i++) {
     struct Token* param = ast_get_node_value(params, i);
     if (param) {
       if ((status = define_arg(vm, *param, &new_fs, ins_count)) != NO_ERR) {
@@ -237,6 +237,7 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body
       }
     }
   }
+  func_value->value.func.argc = param_count;
 
   // Generate the function body
   generate(vm, body, &new_fs, &func_ins_count);
