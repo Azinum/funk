@@ -63,40 +63,45 @@ i32 ast_is_empty(const Ast ast) {
   return is_empty(ast);
 }
 
-i32 ast_add_node(Ast* ast, Value value) {
+Ast ast_add_node(Ast* ast, Value value) {
   struct Node* new_node = create_node(value);
   if (!new_node)
-    return ERR;
+    return NULL;
 
   if (is_empty(*ast)) {
     *ast = create_node((Value) {});
-    if (!(*ast))
-      return ERR;
+    if (!(*ast)) {
+      return NULL;
+    }
   }
   if (!(*ast)->children) {
     (*ast)->children = m_malloc(sizeof(struct Node*));
   }
   else {
     struct Node** tmp = m_realloc((*ast)->children, (sizeof(struct Node*) * (*ast)->child_count), (sizeof(struct Node*)) * ((*ast)->child_count + 1));
-    if (!tmp)
-      return ERR;
+    if (!tmp) {
+      return NULL;
+    }
     (*ast)->children = tmp;
   }
   (*ast)->children[(*ast)->child_count++] = new_node;
-  return NO_ERR;
+  return new_node;
 }
 
 i32 ast_add_node_at(Ast* ast, i32 index, Value value) {
   assert(!is_empty(*ast));
   assert(index < (*ast)->child_count);
-  return ast_add_node(&(*ast)->children[index], value);
+  if (!ast_add_node(&(*ast)->children[index], value)) {
+    return ERR;
+  }
+  return NO_ERR;
 }
 
 Ast ast_get_node_at(Ast* ast, i32 index) {
   assert(!is_empty(*ast));
-  if (index < 0 || index > (*ast)->child_count)
-    return NULL;
-  return (*ast)->children[index];
+  if (index >= 0 && index < ast_child_count(ast))
+    return (*ast)->children[index];
+  return NULL;
 }
 
 Ast ast_get_last(Ast* ast) {

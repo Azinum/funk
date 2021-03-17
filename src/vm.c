@@ -98,11 +98,11 @@ i32 execute(struct VM_state* vm) {
         assert(address >= 0 && address < vm->values_count);
         struct Object obj = vm->values[address];
         stack_push(vm, obj);
-#if 0
-        printf("I_PUSH: %i (value = ", address);
-        object_print(stdout, &obj);
-        printf(")\n");
-#endif
+        break;
+      }
+      case I_PUSH_ARG: {
+        i32 address = *(vm->ip++);
+        // printf("I_PUSH_ARG: %i\n", address);
         break;
       }
       case I_POP:
@@ -113,7 +113,7 @@ i32 execute(struct VM_state* vm) {
         const struct Object* right = stack_get_top(vm);
         if (!right) {
           assert(0);
-          return ERR;
+          return vm->status = ERR;
         }
         *left = *right;
         stack_pop(vm);
@@ -138,9 +138,14 @@ i32 execute(struct VM_state* vm) {
       }
       case I_CALL: {
         i32 address = *(vm->ip++);
-        assert(address >= 0 && address < vm->program_size);
+        assert(address >= 0 && address < vm->values_count);
+        struct Object* obj = &vm->values[address];
+        if (obj->type != T_FUNCTION) {
+          runtime_error("Attempted to call a value which is not a function\n");
+          return vm->status = ERR;
+        }
         i32* old_ip = vm->ip; // Save the current instruction pointer position
-        vm->ip = &vm->program[address];
+        vm->ip = &vm->program[obj->value.func.address];
         execute(vm);  // Execute function
         vm->ip = old_ip; // Restore the old instruction pointer
         break;
@@ -185,7 +190,7 @@ void stack_print_all(struct VM_state* vm) {
 i32 vm_exec(struct VM_state* vm, char* file, char* source) {
   Ast ast = ast_create();
   if (parser_parse(source, file, &ast) == NO_ERR) {
-    // ast_print(ast);
+    ast_print(ast);
 #if 1
     if (code_gen(vm, &ast) == NO_ERR) {
 #if 1

@@ -23,35 +23,38 @@ typedef struct Ins_desc {
   ins_desc_callback callback;
 } Ins_desc;
 
-static i32 num_values_added = 0;
-static i32 old_program_size = 0;
+static i32 num_values_added = 0; // How many values was added in this code generation pass?
+static i32 old_program_size = 0;  // To know how much of the program that we need to shrink back to in case of a rollback
 
 // Code generating functions
 static i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count);
 static i32 value_add(struct VM_state* vm, struct Object obj);
 static i32 define_value(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
+static i32 define_arg(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
+static i32 get_arg_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 token_to_op(const struct Token* token);
 static i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, struct Function_state* fs, i32* ins_count);
 static i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count);
 
 // Functions for writing byte-code descriptions to files
-// TODO(lucas): Seperate this out to another file
 static void output_byte_code(struct VM_state* vm, const char* path);
-static void desc_push_ins(struct VM_state* vm, struct Ins_desc* ins_desc, i32 instruction, i32 arg_index, FILE* fp);
+static void desc_value_ins(struct VM_state* vm, struct Ins_desc* ins_desc, i32 instruction, i32 arg_index, FILE* fp);
 
+// The order of the instruction descriptors are based on the Instruction enum from code.h.
 static Ins_desc ins_desc[MAX_INS] = {
   {"exit",      0,  NULL},
   {"unknown",   0,  NULL},
   {"nop",       0,  NULL},
 
-  {"push",      1,  desc_push_ins},
+  {"push",      1,  desc_value_ins},
+  {"push_arg",  1,  NULL},
   {"pop",       0,  NULL},
   {"assign",    1,  NULL},
   {"cond_jump", 1,  NULL},
   {"jump",      1,  NULL},
   {"return",    0,  NULL},
-  {"call",      1,  NULL},
+  {"call",      1,  desc_value_ins},
 
   {"add",       0,  NULL},
   {"sub",       0,  NULL},
@@ -94,12 +97,9 @@ void output_byte_code(struct VM_state* vm, const char* path) {
   }
 }
 
-void desc_push_ins(struct VM_state* vm, struct Ins_desc* ins_desc, i32 instruction, i32 arg_index, FILE* fp) {
+void desc_value_ins(struct VM_state* vm, struct Ins_desc* ins_desc, i32 instruction, i32 arg_index, FILE* fp) {
   i32 arg = vm->program[arg_index];
-  fprintf(fp, "%i", arg);
-  fprintf(fp, " (");
-  fprintf(fp, "value = ");
-
+  fprintf(fp, "%i (value = ", arg);
   struct Object* value = &vm->values[arg];
   assert(value);
   object_print(fp, value);
@@ -134,8 +134,36 @@ i32 define_value(struct VM_state* vm, struct Token token, struct Function_state*
     *address = value_add(vm, obj);
     ht_insert_element(&fs->symbol_table, name, *address);
   }
-  // printf("Define value: '%.*s' -> addr: %i\n", token.length, token.string, *address);
   return NO_ERR;
+}
+
+static i32 define_arg(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
+  char name[HTABLE_KEY_SIZE] = {};
+  string_copy(name, token.string, token.length, HTABLE_KEY_SIZE);
+
+  const i32* found = ht_lookup(&fs->args, name);
+  if (found) {
+    compile_error("Parameter '%.*s' has already been defined\n", token.length, token.string);
+    return vm->status = ERR;
+  }
+  else {
+    *address = ht_num_elements(&fs->args);
+    ht_insert_element(&fs->args, name, *address);
+  }
+  return NO_ERR;
+
+}
+
+i32 get_arg_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
+  char name[HTABLE_KEY_SIZE] = {};
+  string_copy(name, token.string, token.length, HTABLE_KEY_SIZE);
+
+  const i32* found = ht_lookup(&fs->args, name);
+  if (found) {
+    *address = *found;
+    return NO_ERR;
+  }
+  return ERR;
 }
 
 i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
@@ -177,6 +205,7 @@ i32 token_to_op(const struct Token* token) {
 }
 
 i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, struct Function_state* fs, i32* ins_count) {
+  i32 status = NO_ERR;
   // Allocate a new value for this function
   i32 address = -1;
   if (define_value(vm, name, fs, &address) != NO_ERR) {
@@ -199,9 +228,15 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body
 
   i32 func_ins_count = 0;
 
-  //
-  // TODO(lucas): Parameters
-  //
+  // Parameters
+  for (i32 i = 0; i < ast_child_count(params); i++) {
+    struct Token* param = ast_get_node_value(params, i);
+    if (param) {
+      if ((status = define_arg(vm, *param, &new_fs, ins_count)) != NO_ERR) {
+        goto done;
+      }
+    }
+  }
 
   // Generate the function body
   generate(vm, body, &new_fs, &func_ins_count);
@@ -210,17 +245,11 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body
 
   list_assign(vm->program, vm->program_size, func_jump_ins_index, func_ins_count);
   *ins_count += func_ins_count;
-
+done:
   func_state_free(&new_fs); // Okay, we are done with the compile-time function state for static checks
-  return NO_ERR;
+  return vm->status = status;
 }
 
-// TODO(lucas): Think about how error recovery should be done. We don't
-// want to exit the interpreter just because we encountered a compile-time
-// error. Maybe allocation and initialization of constants/functions e.t.c.
-// should be done after we have successfully generated the byte code
-// (or in some other way keep track of what new changes the code generator did).
-// This is so that in case of an error, we can do a rollback to the previous state.
 i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count) {
   assert(ast);
   i32 child_count = ast_child_count(ast);
@@ -242,19 +271,35 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
         }
         case T_IDENTIFIER: {
           i32 address = -1;
-          if (get_value_address(vm, *token, fs, &address) != NO_ERR) {
-            return vm->status;
+          i32 push_ins = -1;  // Which push instruction to use, can be either I_PUSH_ARG or I_PUSH.
+          struct Object* value = NULL;
+          if (get_arg_value_address(vm, *token, fs, &address) == NO_ERR) {
+            push_ins = I_PUSH_ARG;
           }
-          assert(address != -1);
-          struct Object* value = &vm->values[address];
-          if (value->type == T_FUNCTION) {
-            ins_add(vm, I_CALL, ins_count);
-            ins_add(vm, value->value.func.address, ins_count);
+          else if (get_value_address(vm, *token, fs, &address) == NO_ERR) {
+            push_ins = I_PUSH;
+            value = &vm->values[address];
           }
           else {
-            ins_add(vm, I_PUSH, ins_count);
-            ins_add(vm, address, ins_count);
+            return vm->status = ERR;
           }
+
+          if (value) {
+            if (value->type == T_FUNCTION) {
+              Ast args = ast_get_node_at(ast, i + 1);
+              if (args) {
+                if (ast_child_count(&args) > 0) {
+                  generate(vm, &args, fs, ins_count);
+                }
+                i++;
+              }
+              ins_add(vm, I_CALL, ins_count);
+              ins_add(vm, address, ins_count);
+              break;
+            }
+          }
+          ins_add(vm, push_ins, ins_count);
+          ins_add(vm, address, ins_count);
           break;
         }
         case T_LET: {
@@ -347,10 +392,17 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
           assert(op_branch);
           if (ast_child_count(&op_branch) < 2) {
             compile_error("Missing operands\n");
-            return ERR;
+            return vm->status = ERR;
           }
           generate(vm, &op_branch, fs, ins_count);
           ins_add(vm, op, ins_count);
+          break;
+        }
+        case T_EXPR: {
+          Ast expr_branch = ast_get_node_at(ast, i);
+          if (ast_child_count(&expr_branch) > 0) {
+            generate(vm, &expr_branch, fs, ins_count);
+          }
           break;
         }
         default:
@@ -372,8 +424,8 @@ i32 code_gen(struct VM_state* vm, Ast* ast) {
   if (result != NO_ERR) { // Error occured, perform rollback
     i32 diff = vm->program_size - old_program_size;
     list_shrink(vm->program, vm->program_size, diff);
-    assert(num_values_added < vm->values_count);
-    list_shrink(vm->values, vm->values_count, num_values_added);
+    assert(num_values_added <= vm->values_count);
+    list_shrink(vm->values, vm->values_count, num_values_added);  // TODO(lucas): Don't only shrink the value list, but also deallocate values contents that need be
     return result;
   }
   ins_add(vm, I_RETURN, &ins_count);

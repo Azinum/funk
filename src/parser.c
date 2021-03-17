@@ -68,9 +68,8 @@ i32 simple_expr(Parser* p) {
       case T_MUL:
       case T_DIV: {
         Ast* orig = p->ast;
-        ast_add_node(p->ast, token);
+        Ast op_branch = ast_add_node(p->ast, token);  // Add operator
         next_token(p->l); // Skip operator
-        Ast op_branch = ast_get_last(p->ast);
         p->ast = &op_branch;
 
         simple_expr(p);
@@ -161,7 +160,7 @@ i32 simple_expr(Parser* p) {
       // (define name (args) (body))
       case T_DEFINE: {
         Ast* orig = p->ast;
-        ast_add_node(p->ast, token); // Add 'define'
+        Ast define_branch = ast_add_node(p->ast, token); // Add 'define'
         token = next_token(p->l); // Skip 'define'
 
         if (!expect(p, T_IDENTIFIER)) {
@@ -169,7 +168,6 @@ i32 simple_expr(Parser* p) {
           return p->status = ERR;
         }
 
-        Ast define_branch = ast_get_last(p->ast);
         p->ast = &define_branch;
 
         ast_add_node(p->ast, token);  // Add function identifier
@@ -231,7 +229,13 @@ i32 expression(Parser* p) {
   switch (token.type) {
     case T_OPENPAREN: {
       next_token(p->l); // Skip '('
+      Ast* orig = p->ast;
+      Ast expr_branch = ast_add_node(p->ast, new_token(T_EXPR));
+
+      p->ast = &expr_branch;
       simple_expr(p);
+      p->ast = orig;
+
       if (!expect(p, T_CLOSEDPAREN)) {
         parse_error("Missing closing ')' parenthesis in expression\n");
         return p->status = ERR;

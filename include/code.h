@@ -9,6 +9,7 @@ enum Instruction {
   I_NOP,
 
   I_PUSH,
+  I_PUSH_ARG,
   I_POP,
   I_ASSIGN,
   I_COND_JUMP,

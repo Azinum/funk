@@ -14,7 +14,7 @@ Ast ast_create();
 
 i32 ast_is_empty(const Ast ast);
 
-i32 ast_add_node(Ast* ast, Value value);
+Ast ast_add_node(Ast* ast, Value value);
 
 i32 ast_add_node_at(Ast* ast, i32 index, Value value);
 
