@@ -60,6 +60,10 @@ static Ins_desc ins_desc[MAX_INS] = {
   {"sub",       0,  NULL},
   {"mul",       0,  NULL},
   {"div",       0,  NULL},
+
+  {"lt",        0,  NULL},
+  {"gt",        0,  NULL},
+  {"eq",        0,  NULL},
 };
 
 void output_byte_code(struct VM_state* vm, const char* path) {
