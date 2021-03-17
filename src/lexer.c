@@ -325,10 +325,11 @@ begin_loop:
           l->index++;
           l->count++;
         }
-        l->index++;
+        l->token.string++;
         l->count++;
         l->token.type = T_STRING;
         l->token.length = l->index - l->token.string;
+        l->index++;
         return l->token;
       }
 

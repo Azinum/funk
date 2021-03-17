@@ -265,9 +265,10 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
   for (i32 i = 0; i < child_count; i++) {
     if ((token = ast_get_node_value(ast, i))) {
       switch (token->type) {
+        case T_STRING:
         case T_NUMBER: {
           struct Object obj;
-          if (token_to_object(token, &obj) == NO_ERR) {
+          if (token_to_object(vm, token, &obj) == NO_ERR) {
             i32 address = value_add(vm, obj);
             ins_add(vm, I_PUSH, ins_count);
             ins_add(vm, address, ins_count);

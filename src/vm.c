@@ -37,6 +37,7 @@ i32 vm_init(struct VM_state* vm) {
   vm->stack_base = 0;
   vm->values = NULL;
   vm->values_count = 0;
+  buffer_init(&vm->buffer);
   func_init(&vm->global, NULL);
   func_state_init(&vm->fs_global, NULL, &vm->global);
   vm->program = NULL;
@@ -270,6 +271,7 @@ void vm_free(struct VM_state* vm) {
     }
   }
   list_free(vm->values, vm->values_count);
+  buffer_free(&vm->buffer);
   func_free(&vm->global);
   func_state_free(&vm->fs_global);
   list_free(vm->program, vm->program_size);

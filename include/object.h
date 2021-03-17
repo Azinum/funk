@@ -5,6 +5,9 @@
 
 #include "token.h"
 #include "hash.h"
+#include "buffer.h"
+
+struct VM_state;
 
 struct Function {
   i32 address;
@@ -23,12 +26,13 @@ typedef struct Object {
   union {
     i32 number;
     struct Function func;
-    struct Buffer* buffer;
+    struct Buffer buffer;
+    // struct Buffer* buffer;
   } value;
   i32 type;
 } Object;
 
-i32 token_to_object(struct Token* t, struct Object* obj);
+i32 token_to_object(struct VM_state* vm, struct Token* t, struct Object* obj);
 
 void object_print(FILE* fp, struct Object* obj);
 

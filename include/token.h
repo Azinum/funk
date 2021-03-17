@@ -85,6 +85,10 @@ struct Token {
   char* string;
   i32 length;
   i32 type;
+
+  union {
+    i32 number;
+  } value;
 };
 
 #define TOKEN_LET "let"

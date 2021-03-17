@@ -3,14 +3,26 @@
 #include "common.h"
 #include "util.h"
 #include "hash.h"
+#include "vm.h"
 #include "object.h"
 
-i32 token_to_object(struct Token* t, struct Object* obj) {
+i32 token_to_object(struct VM_state* vm, struct Token* t, struct Object* obj) {
   switch (t->type) {
     case T_NUMBER: {
       obj->type = T_NUMBER;
       obj->value.number = 0;
       string_to_int(t->string, t->length, &obj->value.number);
+      break;
+    }
+    case T_STRING: {
+      if (buffer_append_n(&vm->buffer, t->string, t->length) == NO_ERR) {
+        obj->type = T_STRING;
+        obj->value.buffer.data = &vm->buffer.data[vm->buffer.length - t->length];
+        obj->value.buffer.length = t->length;
+      }
+      else {
+        assert(0);  // TODO(lucas): Handle
+      }
       break;
     }
     default:
@@ -22,6 +34,15 @@ i32 token_to_object(struct Token* t, struct Object* obj) {
 
 void object_print(FILE* fp, struct Object* obj) {
   switch (obj->type) {
+    case T_STRING: {
+      if (obj->value.buffer.data) {
+        fprintf(fp, "\"%.*s\"", obj->value.buffer.length, obj->value.buffer.data);
+      }
+      else {
+        fprintf(fp, "\"\"");
+      }
+      break;
+    }
     case T_NUMBER: {
       fprintf(fp, "%i", obj->value.number);
       break;

@@ -16,6 +16,7 @@ typedef struct VM_state {
   i32 stack_base;
   struct Object* values;
   i32 values_count;
+  struct Buffer buffer;
   struct Function global;
   struct Function_state fs_global;
   i32* program;

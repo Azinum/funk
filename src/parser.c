@@ -207,8 +207,9 @@ i32 simple_expr(Parser* p) {
         p->ast = orig;
         break;
       }
-      case T_IDENTIFIER:
-      case T_NUMBER: {
+      case T_STRING:
+      case T_NUMBER:
+      case T_IDENTIFIER: {
         ast_add_node(p->ast, token);
         next_token(p->l);
         break;
@@ -220,7 +221,7 @@ i32 simple_expr(Parser* p) {
       default:
         parse_error("Unrecognized token\n");
         next_token(p->l);
-        return ERR;
+        return p->status = ERR;
     }
   }
   return NO_ERR;
