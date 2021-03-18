@@ -27,6 +27,7 @@ typedef struct Ins_desc {
 
 static i32 num_values_added = 0; // How many values was added in this code generation pass?
 static i32 old_program_size = 0;  // To know how much of the program that we need to shrink back to in case of a rollback
+static Htable symbols;  // Which symbols was added in this code generation pass?
 
 // Code generating functions
 static i32 set_branch_type(i32* branch_type, i32 type);
@@ -47,27 +48,28 @@ static void desc_value_ins(struct VM_state* vm, struct Ins_desc* ins_desc, i32 i
 
 // The order of the instruction descriptors are based on the Instruction enum from code.h.
 static Ins_desc ins_desc[MAX_INS] = {
-  {"exit",      0,  NULL},
-  {"unknown",   0,  NULL},
-  {"nop",       0,  NULL},
+  {"exit",        0,  NULL},
+  {"unknown",     0,  NULL},
+  {"nop",         0,  NULL},
 
-  {"push",      1,  desc_value_ins},
-  {"push_arg",  1,  NULL},
-  {"pop",       0,  NULL},
-  {"assign",    1,  NULL},
-  {"cond_jump", 1,  NULL},
-  {"jump",      1,  NULL},
-  {"return",    0,  NULL},
-  {"call",      1,  desc_value_ins},
+  {"push",        1,  desc_value_ins},
+  {"push_arg",    1,  NULL},
+  {"pop",         0,  NULL},
+  {"assign",      1,  NULL},
+  {"cond_jump",   1,  NULL},
+  {"jump",        1,  NULL},
+  {"return",      0,  NULL},
+  {"call",        1,  desc_value_ins},
+  {"local_call",  1,  NULL},
 
-  {"add",       0,  NULL},
-  {"sub",       0,  NULL},
-  {"mul",       0,  NULL},
-  {"div",       0,  NULL},
+  {"add",         0,  NULL},
+  {"sub",         0,  NULL},
+  {"mul",         0,  NULL},
+  {"div",         0,  NULL},
 
-  {"lt",        0,  NULL},
-  {"gt",        0,  NULL},
-  {"eq",        0,  NULL},
+  {"lt",          0,  NULL},
+  {"gt",          0,  NULL},
+  {"eq",          0,  NULL},
 };
 
 void output_byte_code(struct VM_state* vm, const char* path) {
@@ -153,6 +155,11 @@ i32 define_value_and_type(struct VM_state* vm, struct Token token, struct Functi
   else {
     *address = value_add(vm, obj);
     ht_insert_element(&fs->symbol_table, name, *address);
+    if (fs == &vm->fs_global) {
+      // NOTE(lucas): Keep track of new global symbols that was added in
+      // this code generation pass (to be able to do rollback on the global symbol table)
+      ht_insert_element(&symbols, name, *address);
+    }
   }
   return NO_ERR;
 }
@@ -438,7 +445,6 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
             list_assign(vm->program, vm->program_size, jump_ins_index, false_body_ins_count);
             *ins_count += false_body_ins_count;
           }
-          // printf("Cond jump: %i, Else jump: %i\n", true_body_ins_count, false_body_ins_count);
           break;
         }
         case T_DEFINE: {
@@ -494,6 +500,8 @@ i32 code_gen(struct VM_state* vm, Ast* ast) {
   if (ast_is_empty(*ast))
     return NO_ERR;
   num_values_added = 0;
+  symbols = ht_create_empty();
+
   old_program_size = vm->program_size;
   i32 ins_count = 0;
   i32 result = generate(vm, ast, &vm->fs_global, &ins_count, NULL);
@@ -503,10 +511,18 @@ i32 code_gen(struct VM_state* vm, Ast* ast) {
     list_shrink(vm->program, vm->program_size, diff);
     assert(num_values_added <= vm->values_count);
     list_shrink(vm->values, vm->values_count, num_values_added);  // TODO(lucas): Don't only shrink the value list, but also deallocate values contents that need be
-    // TODO(lucas): Do rollback of symbol table as well
-    return result;
+    for (i32 i = 0; i < ht_get_size(&symbols); i++) {
+      const Hkey* key = ht_lookup_key(&symbols, i);
+      if (key) {
+        ht_remove_element(&vm->fs_global.symbol_table, *key);
+      }
+    }
+    goto done;
   }
   ins_add(vm, I_RETURN, &ins_count);
   output_byte_code(vm, "bytecode.txt");
+done: {
+  ht_free(&symbols);
+}
   return result;
 }

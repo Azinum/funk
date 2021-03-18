@@ -16,6 +16,7 @@ enum Instruction {
   I_JUMP,
   I_RETURN,
   I_CALL,
+  I_LOCAL_CALL, // Uses the stack to fetch a function value to call
 
   I_ADD,
   I_SUB,

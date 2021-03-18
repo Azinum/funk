@@ -16,18 +16,19 @@
 	} \
 } while (0); \
 
-#define list_realloc(list, count, new_size) { \
-	assert(list != NULL); \
+#define list_realloc(list, count, new_size) do { \
+  if (list == NULL) break; \
 	void* new_list = m_realloc(list, count * sizeof(*list), (new_size) * (sizeof(*list))); \
 	if (new_list != NULL) { \
 		list = new_list; \
 		count = new_size; \
 	} \
-} \
+} while(0); \
 
 #define list_shrink(list, count, num) { \
-	assert((count - num) >= 0); \
-	list_realloc(list, count, count - num); \
+  if ((count - num) >= 0) { \
+	  list_realloc(list, count, count - num); \
+  } \
 }
  
 #define list_assign(list, count, index, value) { \

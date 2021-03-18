@@ -188,6 +188,11 @@ i32 execute(struct VM_state* vm) {
         }
         break;
       }
+      case I_LOCAL_CALL: {
+        vm->ip++;
+        assert(0);
+        break;
+      }
       case I_RETURN: {
         return NO_ERR;
       }
