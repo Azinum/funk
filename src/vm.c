@@ -10,12 +10,21 @@
 #define runtime_error(fmt, ...) \
   fprintf(stderr, "runtime-error: " fmt, ##__VA_ARGS__)
 
+#define EQUAL_TYPES(a, b, t) ((a)->type == t && (b)->type == t)
+
 #define ARITH(VM, OP) { \
   if (VM->stack_top >= 2) { \
     struct Object* left = stack_get(VM, 1); \
     const struct Object* right = stack_get(VM, 0); \
-    left->value.number = left->value.number OP right->value.number; \
-    stack_pop(VM); \
+    if (EQUAL_TYPES(left, right, T_NUMBER)) { \
+      left->value.number = left->value.number OP right->value.number; \
+      stack_pop(VM); \
+    } \
+    else { \
+      runtime_error("Invalid types in arithmetic operation\n"); \
+      VM->status = ERR; \
+      goto done; \
+    } \
   } \
   else { \
     runtime_error("Not enough arguments for arithmetic operation\n"); \

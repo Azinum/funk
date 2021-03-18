@@ -75,10 +75,14 @@ enum Token_type {
   T_IF,
   T_DEFINE,
 
+  T_TYPES, // Explicit types
+
   T_STRING,
   T_NUMBER,
   T_IDENTIFIER,
   T_FUNCTION,
+
+  T_NO_TYPE,  // End of explicit types
 };
 
 struct Token {
@@ -94,6 +98,8 @@ struct Token {
 #define TOKEN_LET "let"
 #define TOKEN_IF "if"
 #define TOKEN_DEFINE "define"
+#define TOKEN_INT "int"
+#define TOKEN_STRING "string"
 
 void token_print(FILE* file, struct Token token);
 

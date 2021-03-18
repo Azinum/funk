@@ -1,4 +1,33 @@
-0000 push          1 (value = "Hello World")
-0002 assign        0
-0004 push          0 (value = ?)
-0006 return
+0000 jump          3
+0002 push          1 (value = "OK")
+0004 return
+0005 jump          23
+0007 push_arg      0
+0009 push          4 (value = 1)
+0011 add
+0012 assign        3
+0014 push          3 (value = ?)
+0016 push          5 (value = 100)
+0018 lt
+0019 cond_jump     6
+0021 push          3 (value = ?)
+0023 call          2 (value = function: 7)
+0025 jump          2
+0027 push          3 (value = ?)
+0029 return
+0030 jump          10
+0032 push_arg      0
+0034 push_arg      1
+0036 add
+0037 assign        7
+0039 push          7 (value = 0)
+0041 return
+0042 push          9 (value = "")
+0044 assign        8
+0046 push          11 (value = 5)
+0048 assign        10
+0050 push          13 (value = 10)
+0052 assign        12
+0054 push          15 (value = "Hello World")
+0056 assign        14
+0058 return

@@ -17,6 +17,9 @@ i32 buffer_append(Buffer* buffer, char* string) {
 
 // TODO(lucas): Error messages
 i32 buffer_append_n(Buffer* buffer, char* string, i32 length) {
+  if (length == 0) {
+    return NO_ERR;
+  }
   assert(length > 0);
   if (!buffer->data) {
     buffer->data = list_init(sizeof(char), length);

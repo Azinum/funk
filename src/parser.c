@@ -96,15 +96,31 @@ i32 simple_expr(Parser* p) {
           return p->status = ERR;
         }
         ast_add_node(p->ast, token);  // Add identifier
-        next_token(p->l);
+        next_token(p->l); // Skip identifier
+
+        // Explicit value type
+        if (expect(p, T_COLON)) {
+          next_token(p->l); // Skip ':'
+          token = get_token(p->l);
+          if (token.type > T_TYPES && token.type < T_NO_TYPE) {
+            ast_add_node(p->ast, get_token(p->l));  // Add type
+            next_token(p->l); // Skip type
+          }
+          else {
+            parse_error("The type '%.*s' is not defined\n", token.length, token.string);
+            return p->status = ERR;
+          }
+        }
+
         Ast assign_branch = ast_get_last(p->ast);
         p->ast = &assign_branch;
 
         simple_expr(p);
 
-        if (ast_child_count(p->ast) < 1) {
+        i32 assign_branch_child_count = ast_child_count(p->ast);
+        if (assign_branch_child_count != 1) {
           p->ast = orig; // Return to the original branch, so that we don't iterate/write on an empty branch
-          parse_error("Missing expression in assignment\n");
+          parse_error("Invalid number of expressions in value assignment (got %i, should be %i)\n", assign_branch_child_count, 1);
           return p->status = ERR;
         }
 

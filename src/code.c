@@ -7,6 +7,8 @@
 #include "util.h"
 #include "code.h"
 
+#define COOL_STUFF 1
+
 // TODO(lucas): Add at which location (line, file) the error occured
 #define compile_error(fmt, ...) \
   fprintf(stderr, "compile-error: " fmt, ##__VA_ARGS__)
@@ -30,6 +32,7 @@ static i32 old_program_size = 0;  // To know how much of the program that we nee
 static i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count);
 static i32 value_add(struct VM_state* vm, struct Object obj);
 static i32 define_value(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
+static i32 define_value_and_type(struct VM_state* vm, struct Token token, struct Function_state* fs, i32 type, i32* address);
 static i32 define_arg(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 get_arg_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
@@ -125,10 +128,14 @@ i32 value_add(struct VM_state* vm, struct Object obj) {
 }
 
 i32 define_value(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address) {
+  return define_value_and_type(vm, token, fs, T_UNKNOWN, address);
+}
+
+i32 define_value_and_type(struct VM_state* vm, struct Token token, struct Function_state* fs, i32 type, i32* address) {
   char name[HTABLE_KEY_SIZE] = {};
   string_copy(name, token.string, token.length, HTABLE_KEY_SIZE);
 
-  struct Object obj = (struct Object) { .type = T_UNKNOWN, };
+  struct Object obj = (struct Object) { .type = type, };
   const i32* found = ht_lookup(&fs->symbol_table, name);
   if (found) {
     compile_error("Value '%.*s' has already been defined\n", token.length, token.string);
@@ -311,11 +318,47 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
           ins_add(vm, address, ins_count);
           break;
         }
+        // T_EXPR
+        // \--
+        //    let
+        //    identifier
+        //    type (optional)
+        //    \-- (expression)
+        //
         case T_LET: {
+          struct Object type_obj;
+          i32 found_type_obj = 0;
+
           i32 address = -1;
           if ((token = ast_get_node_value(ast, ++i))) {
-            if (define_value(vm, *token, fs, &address) == NO_ERR) {
+            i32 type = T_UNKNOWN;
+            if (i + 1 < child_count) { // Explicit type
+              struct Token* type_token = ast_get_node_value(ast, ++i);
+              assert(type_token);
+              type = type_token->type;
+              if (type == T_IDENTIFIER) {
+                i32 type_value_address = -1;
+                if (get_value_address(vm, *type_token, fs, &type_value_address) != NO_ERR) {
+                  compile_error("The type '%.*s' is not defined\n", type_token->length, type_token->string);
+                  return vm->status = ERR;
+                }
+                else {
+                  assert(type_value_address >= 0 && type_value_address < vm->values_count);
+                  type_obj = vm->values[type_value_address];
+                  type = type_obj.type;
+                  found_type_obj = 1;
+                }
+              }
+            }
+            if (define_value_and_type(vm, *token, fs, type, &address) == NO_ERR) {
               assert(address != -1);
+#if COOL_STUFF
+              if (found_type_obj) {
+                struct Object* obj = &vm->values[address];
+                *obj = type_obj;
+                break;
+              }
+#endif
               Ast decl_branch = ast_get_node_at(ast, i);
               if (decl_branch) {
                 generate(vm, &decl_branch, fs, ins_count);

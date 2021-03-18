@@ -1,4 +1,24 @@
 // test.funk
 
-(let a "Hello World")
-(a)
+(define hello()
+  "OK"
+)
+
+(define test(a)
+  (let new_a (+ a 1))
+  (if (< new_a 100) (test(new_a)) (new_a))
+)
+
+(define add(a b)
+  (let result: int (+ a b))
+  (result)
+)
+
+// Explicit types
+(let str: string "")
+(let a: int 5)
+(let b: 5 10)
+(let c: string "Hello World")
+(let d: str "Ok")
+
+(let f: hello ())

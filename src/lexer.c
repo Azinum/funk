@@ -1,6 +1,7 @@
 // lexer.c
 
 #include "common.h"
+#include "util.h"
 #include "lexer.h"
 
 #define lexer_error(fmt, ...) \
@@ -35,14 +36,21 @@ struct Token read_symbol(Lexer* l) {
     l->count++;
   }
   l->token.length = l->index - l->token.string;
-  if (!strncmp(l->token.string, TOKEN_LET, l->token.length)) {
+  if (!strncmp(l->token.string, TOKEN_LET, strlen(TOKEN_LET))) {
     l->token.type = T_LET;
   }
-  else if (!strncmp(l->token.string, TOKEN_IF, l->token.length)) {
+  else if (!strncmp(l->token.string, TOKEN_IF, strlen(TOKEN_IF))) {
     l->token.type = T_IF;
   }
-  else if (!strncmp(l->token.string, TOKEN_DEFINE, l->token.length)) {
+  else if (!strncmp(l->token.string, TOKEN_DEFINE, strlen(TOKEN_DEFINE))) {
     l->token.type = T_DEFINE;
+  }
+  else if (!strncmp(l->token.string, TOKEN_INT, strlen(TOKEN_INT))) {
+    l->token.type = T_NUMBER;
+    l->token.value.number = 0;
+  }
+  else if (!strncmp(l->token.string, TOKEN_STRING, strlen(TOKEN_STRING))) {
+    l->token.type = T_STRING;
   }
   else {
     l->token.type = T_IDENTIFIER;
@@ -63,6 +71,7 @@ struct Token read_number(struct Lexer* lexer) {
   }
   lexer->token.length = lexer->index - lexer->token.string;
   lexer->token.type = T_NUMBER;
+  string_to_int(lexer->token.string, lexer->token.length, &lexer->token.value.number);
   return lexer->token;
 }
 

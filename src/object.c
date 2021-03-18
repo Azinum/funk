@@ -10,8 +10,7 @@ i32 token_to_object(struct VM_state* vm, struct Token* t, struct Object* obj) {
   switch (t->type) {
     case T_NUMBER: {
       obj->type = T_NUMBER;
-      obj->value.number = 0;
-      string_to_int(t->string, t->length, &obj->value.number);
+      obj->value.number = t->value.number;
       break;
     }
     case T_STRING: {
