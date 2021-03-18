@@ -7,7 +7,7 @@
 #include "util.h"
 #include "code.h"
 
-#define COOL_STUFF 1
+#define COOL_STUFF 0
 
 // TODO(lucas): Add at which location (line, file) the error occured
 #define compile_error(fmt, ...) \
@@ -29,6 +29,7 @@ static i32 num_values_added = 0; // How many values was added in this code gener
 static i32 old_program_size = 0;  // To know how much of the program that we need to shrink back to in case of a rollback
 
 // Code generating functions
+static i32 set_branch_type(i32* branch_type, i32 type);
 static i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count);
 static i32 value_add(struct VM_state* vm, struct Object obj);
 static i32 define_value(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
@@ -38,7 +39,7 @@ static i32 get_arg_value_address(struct VM_state* vm, struct Token token, struct
 static i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 token_to_op(const struct Token* token);
 static i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, struct Function_state* fs, i32* ins_count);
-static i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count);
+static i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count, i32* branch_type);
 
 // Functions for writing byte-code descriptions to files
 static void output_byte_code(struct VM_state* vm, const char* path);
@@ -111,6 +112,14 @@ void desc_value_ins(struct VM_state* vm, struct Ins_desc* ins_desc, i32 instruct
   assert(value);
   object_print(fp, value);
   fprintf(fp, ")");
+}
+
+i32 set_branch_type(i32* branch_type, i32 type) {
+  if (branch_type) {
+    *branch_type = type;
+    return NO_ERR;
+  }
+  return ERR;
 }
 
 i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count) {
@@ -254,7 +263,7 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body
   func_value->value.func.argc = param_count;
 
   // Generate the function body
-  generate(vm, body, &new_fs, &func_ins_count);
+  generate(vm, body, &new_fs, &func_ins_count, NULL);
   // Add return instruction at the end of the function
   ins_add(vm, I_RETURN, &func_ins_count);
 
@@ -265,7 +274,7 @@ done:
   return vm->status = status;
 }
 
-i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count) {
+i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count, i32* branch_type) {
   assert(ast);
   i32 child_count = ast_child_count(ast);
   struct Token* token = NULL;
@@ -276,6 +285,7 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
         case T_NUMBER: {
           struct Object obj;
           if (token_to_object(vm, token, &obj) == NO_ERR) {
+            set_branch_type(branch_type, obj.type);
             i32 address = value_add(vm, obj);
             ins_add(vm, I_PUSH, ins_count);
             ins_add(vm, address, ins_count);
@@ -305,14 +315,15 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
               Ast args = ast_get_node_at(ast, i + 1);
               if (args) {
                 if (ast_child_count(&args) > 0) {
-                  generate(vm, &args, fs, ins_count);
+                  generate(vm, &args, fs, ins_count, branch_type);
                 }
                 i++;
+                ins_add(vm, I_CALL, ins_count);
+                ins_add(vm, address, ins_count);
+                break;
               }
-              ins_add(vm, I_CALL, ins_count);
-              ins_add(vm, address, ins_count);
-              break;
             }
+            set_branch_type(branch_type, value->type);
           }
           ins_add(vm, push_ins, ins_count);
           ins_add(vm, address, ins_count);
@@ -327,13 +338,15 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
         //
         case T_LET: {
           struct Object type_obj;
+          struct Token* type_token = NULL;
           i32 found_type_obj = 0;
+          (void)found_type_obj;
 
           i32 address = -1;
           if ((token = ast_get_node_value(ast, ++i))) {
             i32 type = T_UNKNOWN;
             if (i + 1 < child_count) { // Explicit type
-              struct Token* type_token = ast_get_node_value(ast, ++i);
+              type_token = ast_get_node_value(ast, ++i);
               assert(type_token);
               type = type_token->type;
               if (type == T_IDENTIFIER) {
@@ -354,14 +367,23 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
               assert(address != -1);
 #if COOL_STUFF
               if (found_type_obj) {
-                struct Object* obj = &vm->values[address];
-                *obj = type_obj;
-                break;
+                if (type == T_FUNCTION) {
+                  struct Object* obj = &vm->values[address];
+                  *obj = type_obj;
+                  break;
+                }
               }
 #endif
               Ast decl_branch = ast_get_node_at(ast, i);
               if (decl_branch) {
-                generate(vm, &decl_branch, fs, ins_count);
+                i32 decl_branch_type = -1;
+                generate(vm, &decl_branch, fs, ins_count, &decl_branch_type);
+                if (type_token) {
+                  if (decl_branch_type != type) {
+                    compile_error("This expression was expected to have type '%.*s'\n", type_token->length, type_token->string);
+                    return vm->status = ERR;
+                  }
+                }
                 ins_add(vm, I_ASSIGN, ins_count);
                 ins_add(vm, address, ins_count);
                 break;
@@ -387,7 +409,7 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
           Ast true_body = ast_get_node_at(&if_branch, 1);
           Ast false_body = ast_get_node_at(&if_branch, 2);
           assert(cond && true_body && false_body);
-          generate(vm, &cond, fs, ins_count);
+          generate(vm, &cond, fs, ins_count, branch_type);
 
           i32 true_body_ins_count = 0;
           i32 false_body_ins_count = 0;
@@ -398,7 +420,7 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
           ins_add(vm, UNRESOLVED_JUMP, &true_body_ins_count);
 
           // Generate the first expression (the 'true' expression of the if statement)
-          generate(vm, &true_body, fs, &true_body_ins_count);
+          generate(vm, &true_body, fs, &true_body_ins_count, branch_type);
           // Resolve jump
           list_assign(vm->program, vm->program_size, cond_jump_ins_index, true_body_ins_count);
           *ins_count += true_body_ins_count;
@@ -411,7 +433,7 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
             ins_add(vm, UNRESOLVED_JUMP, ins_count);
 
             // Generate the second expression of the if statement
-            generate(vm, &false_body, fs, &false_body_ins_count);
+            generate(vm, &false_body, fs, &false_body_ins_count, branch_type);
             // Resolve jump
             list_assign(vm->program, vm->program_size, jump_ins_index, false_body_ins_count);
             *ins_count += false_body_ins_count;
@@ -449,14 +471,14 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
             compile_error("Missing operands\n");
             return vm->status = ERR;
           }
-          generate(vm, &op_branch, fs, ins_count);
+          generate(vm, &op_branch, fs, ins_count, branch_type);
           ins_add(vm, op, ins_count);
           break;
         }
         case T_EXPR: {
           Ast expr_branch = ast_get_node_at(ast, i);
           if (ast_child_count(&expr_branch) > 0) {
-            generate(vm, &expr_branch, fs, ins_count);
+            generate(vm, &expr_branch, fs, ins_count, branch_type);
           }
           break;
         }
@@ -474,13 +496,14 @@ i32 code_gen(struct VM_state* vm, Ast* ast) {
   num_values_added = 0;
   old_program_size = vm->program_size;
   i32 ins_count = 0;
-  i32 result = generate(vm, ast, &vm->fs_global, &ins_count);
+  i32 result = generate(vm, ast, &vm->fs_global, &ins_count, NULL);
 
   if (result != NO_ERR) { // Error occured, perform rollback
     i32 diff = vm->program_size - old_program_size;
     list_shrink(vm->program, vm->program_size, diff);
     assert(num_values_added <= vm->values_count);
     list_shrink(vm->values, vm->values_count, num_values_added);  // TODO(lucas): Don't only shrink the value list, but also deallocate values contents that need be
+    // TODO(lucas): Do rollback of symbol table as well
     return result;
   }
   ins_add(vm, I_RETURN, &ins_count);

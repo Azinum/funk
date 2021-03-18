@@ -20,7 +20,7 @@
 0034 push_arg      1
 0036 add
 0037 assign        7
-0039 push          7 (value = 0)
+0039 push          7 (value = ?)
 0041 return
 0042 push          9 (value = "")
 0044 assign        8
@@ -30,4 +30,9 @@
 0052 assign        12
 0054 push          15 (value = "Hello World")
 0056 assign        14
-0058 return
+0058 push          17 (value = "Ok")
+0060 assign        16
+0062 push          19 (value = 5)
+0064 assign        18
+0066 push          18 (value = 5)
+0068 return

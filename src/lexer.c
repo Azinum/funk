@@ -10,6 +10,7 @@
 static i32 is_alpha(char ch);
 static i32 is_number(char ch);
 static i32 end_of_line(Lexer* l);
+static i32 match(struct Token token, const char* compare);
 static struct Token read_symbol(Lexer* l);
 static struct Token read_number(Lexer* l);
 static void next(Lexer* l);
@@ -26,6 +27,16 @@ i32 end_of_line(Lexer* l) {
   return *l->index == '\n' || *l->index == '\r';
 }
 
+i32 match(struct Token token, const char* compare) {
+  const char* index = compare;
+  for (int i = 0; i < token.length; i++, index++) {
+    if (token.string[i] != *index) {
+      return 0;
+    }
+  }
+  return (*index == 0);
+}
+
 struct Token read_symbol(Lexer* l) {
   while (
     is_alpha(*l->index) ||
@@ -36,20 +47,20 @@ struct Token read_symbol(Lexer* l) {
     l->count++;
   }
   l->token.length = l->index - l->token.string;
-  if (!strncmp(l->token.string, TOKEN_LET, strlen(TOKEN_LET))) {
+  if (match(l->token, TOKEN_LET)) {
     l->token.type = T_LET;
   }
-  else if (!strncmp(l->token.string, TOKEN_IF, strlen(TOKEN_IF))) {
+  else if (match(l->token, TOKEN_IF)) {
     l->token.type = T_IF;
   }
-  else if (!strncmp(l->token.string, TOKEN_DEFINE, strlen(TOKEN_DEFINE))) {
+  else if (match(l->token, TOKEN_DEFINE)) {
     l->token.type = T_DEFINE;
   }
-  else if (!strncmp(l->token.string, TOKEN_INT, strlen(TOKEN_INT))) {
+  else if (match(l->token, TOKEN_INT)) {
     l->token.type = T_NUMBER;
     l->token.value.number = 0;
   }
-  else if (!strncmp(l->token.string, TOKEN_STRING, strlen(TOKEN_STRING))) {
+  else if (match(l->token, TOKEN_STRING)) {
     l->token.type = T_STRING;
   }
   else {
