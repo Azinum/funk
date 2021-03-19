@@ -14,7 +14,7 @@ static void parser_init(Parser* parser, Lexer* lexer, Ast* ast);
 static i32 expect(Parser* p, i32 type);
 static i32 end(Parser* p);
 static i32 expr_end(Parser* p);
-static i32 func_params(Parser* p);
+static i32 func_args(Parser* p);
 static i32 simple_expr(Parser* p);
 static i32 expression(Parser* p);
 static i32 expressions(Parser* p);
@@ -37,7 +37,7 @@ i32 expr_end(Parser* p) {
   return expect(p, T_CLOSEDPAREN);
 }
 
-i32 func_params(Parser* p) {
+i32 func_args(Parser* p) {
   for (;;) {
     struct Token token = get_token(p->l);
     switch (token.type) {
@@ -179,7 +179,7 @@ i32 simple_expr(Parser* p) {
       // (define name (args) (body))
       case T_DEFINE: {
         Ast* orig = p->ast;
-        Ast define_branch = ast_add_node(p->ast, token); // Add 'define'
+        Ast func_branch = ast_add_node(p->ast, token); // Add 'define'
         token = next_token(p->l); // Skip 'define'
 
         if (!expect(p, T_IDENTIFIER)) {
@@ -187,35 +187,28 @@ i32 simple_expr(Parser* p) {
           return p->status = ERR;
         }
 
-        p->ast = &define_branch;
+        p->ast = &func_branch;
 
         ast_add_node(p->ast, token);  // Add function identifier
         next_token(p->l); // Skip identifier
 
-        if (!expect(p, T_OPENPAREN)) {
-          p->ast = orig;
-          parse_error("Expected parameter list in function definition\n");
-          return p->status = ERR;
-        }
-        next_token(p->l); // Skip '('
-
-        p->ast = &define_branch;
-        ast_add_node(p->ast, new_token(T_EXPR));
-        Ast args = ast_get_last(p->ast);
+        Ast args = ast_add_node(&func_branch, new_token(T_EXPR));
         p->ast = &args;
 
-        func_params(p);  // Parse function parameters
+        if (expect(p, T_OPENPAREN)) {
+          next_token(p->l);  // Skip '('
 
-        if (!expect(p, T_CLOSEDPAREN)) {
-          p->ast = orig;
-          parse_error("Missing closing ')' parenthesis in parameter list\n");
-          return p->status = ERR;
+          func_args(p);  // Parse function arguments
+
+          if (!expect(p, T_CLOSEDPAREN)) {
+            p->ast = orig;
+            parse_error("Missing closing ')' parenthesis in function argument list\n");
+            return p->status = ERR;
+          }
+          next_token(p->l); // Skip ')'
         }
-        next_token(p->l); // Skip ')'
 
-        p->ast = &define_branch;
-        ast_add_node(p->ast, new_token(T_EXPR));
-        Ast body = ast_get_last(p->ast);
+        Ast body = ast_add_node(&func_branch, new_token(T_EXPR));
         p->ast = &body;
 
         simple_expr(p); // Parse function body

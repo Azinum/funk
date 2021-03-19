@@ -27,7 +27,6 @@ typedef struct Object {
     i32 number;
     struct Function func;
     struct Buffer buffer;
-    // struct Buffer* buffer;
   } value;
   i32 type;
 } Object;

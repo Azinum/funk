@@ -38,6 +38,7 @@ inline void stack_pop(struct VM_state* vm);
 inline struct Object* stack_get(struct VM_state* vm, i32 offset);
 inline struct Object* stack_get_top(struct VM_state* vm);
 inline i32 object_check_true(struct Object* obj);
+inline i32 objects_are_equal(struct Object* a, struct Object* b);
 static i32 execute(struct VM_state* vm);
 static void stack_print_all(struct VM_state* vm);
 
@@ -95,6 +96,30 @@ i32 object_check_true(struct Object* obj) {
       return obj->value.number != 0;
     default:
       break;
+  }
+  return 0;
+}
+
+i32 objects_are_equal(struct Object* a, struct Object* b) {
+  if (a->type == b->type) {
+    switch (a->type) {
+      case T_NUMBER: {
+        return a->value.number == b->value.number;
+      }
+      case T_FUNCTION: {
+        return a->value.func.address == b->value.func.address;
+      }
+      case T_STRING: {
+        if (a->value.buffer.data == b->value.buffer.data) {
+          return 1;
+        }
+        else if (a->value.buffer.length == b->value.buffer.length) {
+          return (strncmp(a->value.buffer.data, b->value.buffer.data, a->value.buffer.length)) == 0;
+        }
+      }
+      default:
+        break;
+    }
   }
   return 0;
 }
@@ -214,9 +239,22 @@ i32 execute(struct VM_state* vm) {
       case I_GT:
         ARITH(vm, >);
         break;
-      case I_EQ:
-        ARITH(vm, ==);
+      case I_EQ: {
+        if (vm->stack_top >= 2) {
+          struct Object* left = stack_get(vm, 1);
+          struct Object* right = stack_get(vm, 0);
+          i32 result = objects_are_equal(left, right);
+          left->value.number = result;
+          left->type = T_NUMBER;
+          stack_pop(vm);
+        }
+        else {
+          runtime_error("Not enough arguments for arithmetic operation\n");
+          vm->status = ERR;
+          goto done;
+        }
         break;
+      }
       default:
         runtime_error("Tried to execute bad instruction (%i)\n", ins);
         assert(0);

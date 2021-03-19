@@ -39,7 +39,7 @@ static i32 define_arg(struct VM_state* vm, struct Token token, struct Function_s
 static i32 get_arg_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 token_to_op(const struct Token* token);
-static i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, struct Function_state* fs, i32* ins_count);
+static i32 generate_func(struct VM_state* vm, struct Token name, Ast* args, Ast* body, struct Function_state* fs, i32* ins_count);
 static i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_count, i32* branch_type);
 
 // Functions for writing byte-code descriptions to files
@@ -233,7 +233,7 @@ i32 token_to_op(const struct Token* token) {
   return I_UNKNOWN;
 }
 
-i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body, struct Function_state* fs, i32* ins_count) {
+i32 generate_func(struct VM_state* vm, struct Token name, Ast* args, Ast* body, struct Function_state* fs, i32* ins_count) {
   i32 status = NO_ERR;
   // Allocate a new value for this function
   i32 address = -1;
@@ -257,17 +257,17 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* params, Ast* body
 
   i32 func_ins_count = 0;
 
-  // Parameters
-  i32 param_count = ast_child_count(params);
-  for (i32 i = 0; i < param_count; i++) {
-    struct Token* param = ast_get_node_value(params, i);
-    if (param) {
-      if ((status = define_arg(vm, *param, &new_fs, ins_count)) != NO_ERR) {
+  // Function arguments
+  i32 arg_count = ast_child_count(args);
+  for (i32 i = 0; i < arg_count; i++) {
+    struct Token* arg = ast_get_node_value(args, i);
+    if (arg) {
+      if ((status = define_arg(vm, *arg, &new_fs, ins_count)) != NO_ERR) {
         goto done;
       }
     }
   }
-  func_value->value.func.argc = param_count;
+  func_value->value.func.argc = arg_count;
 
   // Generate the function body
   generate(vm, body, &new_fs, &func_ins_count, NULL);
@@ -450,10 +450,10 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
         case T_DEFINE: {
           Ast func = ast_get_node_at(ast, i);
           if ((token = ast_get_node_value(&func, 0))) {
-            Ast params = ast_get_node_at(&func, 1);
+            Ast args = ast_get_node_at(&func, 1);
             Ast body = ast_get_node_at(&func, 2);
-            assert(params && body);
-            if (generate_func(vm, *token, &params, &body, fs, ins_count) != NO_ERR) {
+            assert(args && body);
+            if (generate_func(vm, *token, &args, &body, fs, ins_count) != NO_ERR) {
               return vm->status;
             }
           }
