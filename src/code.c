@@ -7,8 +7,6 @@
 #include "util.h"
 #include "code.h"
 
-#define COOL_STUFF 0
-
 // TODO(lucas): Add at which location (line, file) the error occured
 #define compile_error(fmt, ...) \
   fprintf(stderr, "compile-error: " fmt, ##__VA_ARGS__)
@@ -262,6 +260,11 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* args, Ast* body, 
   for (i32 i = 0; i < arg_count; i++) {
     struct Token* arg = ast_get_node_value(args, i);
     if (arg) {
+      if (arg->type != T_IDENTIFIER) {
+        compile_error("Expected identifier in function argument list (got '%.*s')\n", arg->length, arg->string);
+        status = ERR;
+        goto done;
+      }
       if ((status = define_arg(vm, *arg, &new_fs, ins_count)) != NO_ERR) {
         goto done;
       }
@@ -336,76 +339,84 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
           ins_add(vm, address, ins_count);
           break;
         }
-        // T_EXPR
-        // \--
-        //    let
-        //    identifier
-        //    type (optional)
-        //    \-- (expression)
-        //
+        // let
+        // \-- identifier
+        //        \--type (optional)
+        //     \-- (expression)
         case T_LET: {
-          struct Object type_obj;
-          struct Token* type_token = NULL;
-          i32 found_type_obj = 0;
-          (void)found_type_obj;
+          Ast let_branch = ast_get_node_at(ast, i);
+          Ast ident_branch = ast_get_node_at(&let_branch, 0);
+          Ast value_branch = ast_get_node_at(&let_branch, 1);
+          i32 value_branch_child_count = ast_child_count(&value_branch);
+          assert(value_branch_child_count == 1);
 
-          i32 address = -1;
-          if ((token = ast_get_node_value(ast, ++i))) {
-            i32 type = T_UNKNOWN;
-            if (i + 1 < child_count) { // Explicit type
-              type_token = ast_get_node_value(ast, ++i);
-              assert(type_token);
-              type = type_token->type;
-              if (type == T_IDENTIFIER) {
-                i32 type_value_address = -1;
-                if (get_value_address(vm, *type_token, fs, &type_value_address) != NO_ERR) {
-                  compile_error("The type '%.*s' is not defined\n", type_token->length, type_token->string);
-                  return vm->status = ERR;
-                }
-                else {
-                  assert(type_value_address >= 0 && type_value_address < vm->values_count);
-                  type_obj = vm->values[type_value_address];
-                  type = type_obj.type;
-                  found_type_obj = 1;
-                }
-              }
-            }
-            if (define_value_and_type(vm, *token, fs, type, &address) == NO_ERR) {
-              assert(address != -1);
-#if COOL_STUFF
-              if (found_type_obj) {
-                if (type == T_FUNCTION) {
-                  struct Object* obj = &vm->values[address];
-                  *obj = type_obj;
-                  break;
-                }
-              }
-#endif
-              Ast decl_branch = ast_get_node_at(ast, i);
-              if (decl_branch) {
-                i32 decl_branch_type = -1;
-                generate(vm, &decl_branch, fs, ins_count, &decl_branch_type);
-                if (type_token) {
-                  if (decl_branch_type != type) {
-                    compile_error("This expression was expected to have type '%.*s'\n", type_token->length, type_token->string);
-                    return vm->status = ERR;
-                  }
-                }
-                ins_add(vm, I_ASSIGN, ins_count);
-                ins_add(vm, address, ins_count);
-                break;
+          struct Token* ident = ast_get_value(&ident_branch);
+          struct Token* type_token = ast_get_node_value(&ident_branch, 0);
+          struct Object type_obj = { .type = T_UNKNOWN };
+          assert(ident);
+
+          i32 value_address = -1;
+          i32 type = T_UNKNOWN;
+
+          // Handle explicit type
+          if (type_token) {
+            if (type_token->type == T_IDENTIFIER) {
+              i32 type_value_address = -1;
+              if (get_value_address(vm, *type_token, fs, &type_value_address) == NO_ERR) {
+                assert(type_value_address >= 0 && type_value_address < vm->values_count);
+                type_obj = vm->values[type_value_address];
+                type = type_obj.type;
               }
               else {
-                assert(0);
+                compile_error("The type '%.*s' is not defined\n", type_token->length, type_token->string);
+                return vm->status = ERR;
               }
+            }
+            else {
+              type = type_token->type;
+            }
+          }
+
+          if (define_value_and_type(vm, *ident, fs, type, &value_address) == NO_ERR) {
+            assert(value_address != -1);
+
+            i32 value_branch_type = -1;
+            if ((generate(vm, &value_branch, fs, ins_count, &value_branch_type)) == NO_ERR) {
+              // Validate equality between value and branch types
+              if (type_token) {
+                if (type != value_branch_type) {
+                  compile_error("This expression was expected to have type '%.*s'\n", type_token->length, type_token->string);
+                  return vm->status = ERR;
+                }
+              }
+
+              struct Object* value = &vm->values[value_address];
+              value->type = value_branch_type;
+              ins_add(vm, I_ASSIGN, ins_count);
+              ins_add(vm, value_address, ins_count);
+              break;
             }
             else {
               return vm->status = ERR;
             }
           }
           else {
-            compile_error("Missing identifier in declaration\n");
             return vm->status = ERR;
+          }
+          break;
+        }
+        case T_DEFINE: {
+          Ast func = ast_get_node_at(ast, i);
+          if ((token = ast_get_node_value(&func, 0))) {
+            Ast args = ast_get_node_at(&func, 1);
+            Ast body = ast_get_node_at(&func, 2);
+            assert(args && body);
+            if (generate_func(vm, *token, &args, &body, fs, ins_count) != NO_ERR) {
+              return vm->status;
+            }
+          }
+          else {
+            assert(0);
           }
           break;
         }
@@ -444,21 +455,6 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
             // Resolve jump
             list_assign(vm->program, vm->program_size, jump_ins_index, false_body_ins_count);
             *ins_count += false_body_ins_count;
-          }
-          break;
-        }
-        case T_DEFINE: {
-          Ast func = ast_get_node_at(ast, i);
-          if ((token = ast_get_node_value(&func, 0))) {
-            Ast args = ast_get_node_at(&func, 1);
-            Ast body = ast_get_node_at(&func, 2);
-            assert(args && body);
-            if (generate_func(vm, *token, &args, &body, fs, ins_count) != NO_ERR) {
-              return vm->status;
-            }
-          }
-          else {
-            assert(0);
           }
           break;
         }

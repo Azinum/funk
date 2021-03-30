@@ -18,11 +18,10 @@
 
 #define list_realloc(list, count, new_size) do { \
   if (list == NULL) break; \
+  if (new_size == 0) { list_free(list, count); break; } \
 	void* new_list = m_realloc(list, count * sizeof(*list), (new_size) * (sizeof(*list))); \
-	if (new_list != NULL) { \
-		list = new_list; \
-		count = new_size; \
-	} \
+  list = new_list; \
+  count = new_size; \
 } while(0); \
 
 #define list_shrink(list, count, num) { \

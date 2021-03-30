@@ -294,8 +294,6 @@ i32 vm_exec(struct VM_state* vm, char* file, char* source) {
           stack_print_all(vm);
           list_shrink(vm->program, vm->program_size, 1); // Remove I_RETURN instruction
           vm->old_program_size = vm->program_size;
-          // NOTE(lucas): The instruction pointer probably got invalidated
-          // because the program was moved to another location (this can happen when generating new code/modifying the program list with list_shrink e.t.c.)
           vm->saved_ip = (i32)(&vm->program[vm->program_size] - &vm->program[0]); // Save the instruction pointer index, and restore it in the next execution.
           vm->stack_top = 0;
         }

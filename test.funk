@@ -1,25 +1,7 @@
 // test.funk
 
-/*
-(define test(a)
-  (let new_a (+ a 1))
-  (if (< new_a 100) (test(new_a)) (new_a))
-)
+(define b() 5)
 
-(let str: string "")
+(define a() b)
+
 (let a: int 5)
-(let b: 5 10)
-(let c: string "Hello World")
-(let d: str "Ok")
-(let f: hello hello)
-*/
-
-(define hello
-  "hello"
-)
-
-(define equals(a b)
-  == a b
-)
-
-(equals((hello()) "hello"))

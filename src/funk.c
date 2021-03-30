@@ -43,7 +43,11 @@ i32 funk_start(i32 argc, char** argv) {
   user_input(&vm);
 #endif
   vm_free(&vm);
-  assert(memory_total() == 0);
+  if (memory_total() != 0) {
+    fprintf(stderr, "Memory leak!\n");
+    memory_print_info();
+    assert(memory_total() == 0);
+  }
   return NO_ERR;
 }
 

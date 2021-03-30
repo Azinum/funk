@@ -1,12 +1,7 @@
 0000 jump          3
-0002 push          1 (value = "hello")
+0002 push          1 (value = 5)
 0004 return
-0005 jump          6
-0007 push_arg      0
-0009 push_arg      1
-0011 eq
-0012 return
-0013 call          0 (value = function: 2)
-0015 push          3 (value = "hello")
-0017 call          2 (value = function: 7)
-0019 return
+0005 jump          3
+0007 push          0 (value = function: 2)
+0009 return
+0010 return

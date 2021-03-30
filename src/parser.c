@@ -86,24 +86,30 @@ i32 simple_expr(Parser* p) {
         p->ast = orig;  // Return to original branch
         break;
       }
-
       case T_LET: {
-        Ast* orig = p->ast;
-        ast_add_node(p->ast, token); // Add 'let'
-        token = next_token(p->l); // Skip 'let'
+        Ast* orig = p->ast; // Save the pointer to the original branch so that we can return to it later
+        Ast let_branch = ast_add_node(p->ast, token); // Add 'let'
+        p->ast = &let_branch;
+        token = next_token(p->l);  // Skip 'let'
+
         if (!expect(p, T_IDENTIFIER)) {
           parse_error("Expected identifier\n");
+          p->ast = orig;
           return p->status = ERR;
         }
-        ast_add_node(p->ast, token);  // Add identifier
-        next_token(p->l); // Skip identifier
 
+        ast_add_node(p->ast, token); // Add identifier
+        token = next_token(p->l); // Skip identifier
+
+        //
         // Explicit value type
+        //
         if (expect(p, T_COLON)) {
           next_token(p->l); // Skip ':'
           token = get_token(p->l);
           if (token.type > T_TYPES && token.type < T_NO_TYPE) {
-            ast_add_node(p->ast, get_token(p->l));  // Add type
+            // ast_add_node(p->ast, get_token(p->l));  // Add type
+            ast_add_node_last(p->ast, get_token(p->l));
             next_token(p->l); // Skip type
           }
           else {
@@ -112,22 +118,21 @@ i32 simple_expr(Parser* p) {
           }
         }
 
-        Ast assign_branch = ast_get_last(p->ast);
-        p->ast = &assign_branch;
+        Ast value_branch = ast_add_node(p->ast, new_token(T_EXPR));
+        p->ast = &value_branch;
 
         simple_expr(p);
 
-        i32 assign_branch_child_count = ast_child_count(p->ast);
-        if (assign_branch_child_count != 1) {
-          p->ast = orig; // Return to the original branch, so that we don't iterate/write on an empty branch
-          parse_error("Invalid number of expressions in value assignment (got %i, should be %i)\n", assign_branch_child_count, 1);
+        i32 value_branch_child_count = ast_child_count(p->ast);
+        if (value_branch_child_count != 1) {
+          parse_error("Invalid number of expressions given in value definition\n");
+          p->ast = orig;
           return p->status = ERR;
         }
 
         p->ast = orig;
         break;
       }
-
       // (if (cond) (true-expr) (false-expr))
       // (if (cond) (true-expr))
       case T_IF: {

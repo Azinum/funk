@@ -16,9 +16,11 @@ i32 ast_is_empty(const Ast ast);
 
 Ast ast_add_node(Ast* ast, Value value);
 
-i32 ast_add_node_at(Ast* ast, i32 index, Value value);
+Ast ast_add_node_at(Ast* ast, i32 index, Value value);
 
 Ast ast_get_node_at(Ast* ast, i32 index);
+
+Ast ast_add_node_last(Ast* ast, Value value);
 
 Ast ast_get_last(Ast* ast);
 

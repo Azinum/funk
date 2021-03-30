@@ -38,7 +38,7 @@ struct Node* create_node(Value value) {
 i32 print_tree(const Ast ast, i32 level) {
   if (is_empty(ast))
     return NO_ERR;
-  for (i32 i = 0; i < level - 1; i++) {
+  for (i32 i = 0; i < level; i++) {
     printf("  ");
   }
   if (ast->value.length > 0) {
@@ -88,13 +88,20 @@ Ast ast_add_node(Ast* ast, Value value) {
   return new_node;
 }
 
-i32 ast_add_node_at(Ast* ast, i32 index, Value value) {
+Ast ast_add_node_at(Ast* ast, i32 index, Value value) {
   assert(!is_empty(*ast));
   assert(index < (*ast)->child_count);
-  if (!ast_add_node(&(*ast)->children[index], value)) {
-    return ERR;
+  Ast result = ast_add_node(&(*ast)->children[index], value);
+  return result;
+}
+
+Ast ast_add_node_last(Ast* ast, Value value) {
+  assert(!is_empty(*ast));
+  i32 child_count = ast_child_count(ast);
+  if (child_count == 0) {
+    return NULL;
   }
-  return NO_ERR;
+  return ast_add_node_at(ast, child_count - 1, value);
 }
 
 Ast ast_get_node_at(Ast* ast, i32 index) {
