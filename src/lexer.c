@@ -94,6 +94,7 @@ void next(Lexer* l) {
 
 void lexer_init(Lexer* l, char* input, const char* filename) {
   assert(input);
+  l->source = &input[0];
   l->index = &input[0];
   l->line = 1;
   l->count = 1;

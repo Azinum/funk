@@ -2,6 +2,6 @@
 
 (define b() 5)
 
-(define a() b)
-
-(let a: int 5)
+(define hello(value)
+  (if (value) (12) (5))
+)

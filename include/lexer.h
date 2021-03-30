@@ -6,6 +6,7 @@
 #include "token.h"
 
 typedef struct Lexer {
+  char* source;
   char* index;
   i32 line;
   i32 count;

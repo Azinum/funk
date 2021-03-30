@@ -506,7 +506,7 @@ i32 code_gen(struct VM_state* vm, Ast* ast) {
     i32 diff = vm->program_size - old_program_size;
     list_shrink(vm->program, vm->program_size, diff);
     assert(num_values_added <= vm->values_count);
-    list_shrink(vm->values, vm->values_count, num_values_added);  // TODO(lucas): Don't only shrink the value list, but also deallocate values contents that need be
+    list_shrink(vm->values, vm->values_count, num_values_added);  // TODO(lucas): Don't only shrink the value list, but also deallocate value contents that need be
     for (i32 i = 0; i < ht_get_size(&symbols); i++) {
       const Hkey* key = ht_lookup_key(&symbols, i);
       if (key) {
