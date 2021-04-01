@@ -1,9 +1,10 @@
 // test.funk
 
-(define event(e arg)
-  (e(arg))
+(define p print)
+
+(define hello(a b)
+  a(b)
 )
 
-(define hello(n) n)
-
-(event((hello) 3))
+(let printer (p()))
+(hello((printer) "Hello World"))

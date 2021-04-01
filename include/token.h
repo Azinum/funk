@@ -81,6 +81,7 @@ enum Token_type {
   T_NUMBER,
   T_IDENTIFIER,
   T_FUNCTION,
+  T_CFUNCTION,
 
   T_NO_TYPE,  // End of explicit types
 };

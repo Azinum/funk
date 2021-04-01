@@ -50,6 +50,10 @@ void object_print(FILE* fp, struct Object* obj) {
       fprintf(fp, "function: %i", obj->value.func.address);
       break;
     }
+    case T_CFUNCTION: {
+      fprintf(fp, "cfunction: %p", obj->value.cfunc.func);
+      break;
+    }
     default:
       fprintf(fp, "?");
       break;

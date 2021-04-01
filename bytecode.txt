@@ -1,12 +1,14 @@
-0000 jump          7
-0002 push_arg      1
-0004 push_arg      0
-0006 local_call    1
-0008 return
-0009 jump          3
-0011 push_arg      0
+0000 jump          3
+0002 push          0 (value = cfunction: 0x55ad1fef6c60)
+0004 return
+0005 jump          7
+0007 push_arg      1
+0009 push_arg      0
+0011 local_call    1
 0013 return
-0014 push          1 (value = function: 11)
-0016 push          2 (value = 3)
-0018 call          0 (value = function: 2)
-0020 return
+0014 call          1 (value = function: 2)
+0016 assign        3
+0018 push          3 (value = ?)
+0020 push          4 (value = "Hello World")
+0022 call          2 (value = function: 7)
+0024 return

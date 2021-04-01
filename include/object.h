@@ -15,6 +15,15 @@ struct Function {
   struct Function* parent;
 };
 
+// NOTE(lucas): Return value represents the number of values
+// that was produced from the function call
+typedef i32 (*cfunction)(struct VM_state*);
+
+struct CFunction {
+  cfunction func;
+  i32 argc;
+};
+
 struct Function_state {
   struct Function* func;
   struct Function_state* parent;
@@ -26,6 +35,7 @@ typedef struct Object {
   union {
     i32 number;
     struct Function func;
+    struct CFunction cfunc;
     struct Buffer buffer;
   } value;
   i32 type;

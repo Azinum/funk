@@ -39,6 +39,9 @@ inline struct Object* stack_get(struct VM_state* vm, i32 offset);
 inline struct Object* stack_get_top(struct VM_state* vm);
 inline i32 object_check_true(struct Object* obj);
 inline i32 objects_are_equal(struct Object* a, struct Object* b);
+static i32 vm_define_value(struct VM_state* vm, const char* name, struct Object value);
+static i32 vm_define_function(struct VM_state* vm, const char* name, cfunction func, i32 argc);
+static i32 vm_debug_print(struct VM_state* vm);
 static i32 execute(struct VM_state* vm);
 static void stack_print_all(struct VM_state* vm);
 
@@ -56,6 +59,7 @@ i32 vm_init(struct VM_state* vm) {
   vm->ip = NULL;
   vm->saved_ip = 0;
   vm->status = NO_ERR;
+  vm_define_function(vm, "print", vm_debug_print, 1);
   return NO_ERR;
 }
 
@@ -125,6 +129,41 @@ i32 objects_are_equal(struct Object* a, struct Object* b) {
   return 0;
 }
 
+i32 vm_define_value(struct VM_state* vm, const char* name, struct Object value) {
+  i32 address = -1;
+  (void)address;
+  const i32* found = ht_lookup(&vm->fs_global.symbol_table, name);
+  if (found) {
+    assert(0);
+    return vm->status = ERR;
+  }
+  else {
+    address = vm->values_count;
+    list_push(vm->values, vm->values_count, value);
+    ht_insert_element(&vm->fs_global.symbol_table, name, address);
+  }
+  return NO_ERR;
+}
+
+i32 vm_define_function(struct VM_state* vm, const char* name, cfunction func, i32 argc) {
+  struct Object value = (struct Object) {
+    .value.cfunc = (struct CFunction) {
+      .func = func,
+      .argc = argc,
+    },
+    .type = T_CFUNCTION,
+  };
+  return vm_define_value(vm, name, value);
+}
+
+i32 vm_debug_print(struct VM_state* vm) {
+  struct Object* value = stack_pop(vm);
+  if (value) {
+    object_printline(stdout, value);
+  }
+  return 0;
+}
+
 i32 execute(struct VM_state* vm) {
   i32 stack_base = vm->stack_base;
   for (;;) {
@@ -186,10 +225,27 @@ i32 execute(struct VM_state* vm) {
         vm->ip += offset;
         break;
       }
+      // TODO(lucas): Clean up I_CALL and I_LOCAL_CALL
       case I_CALL: {
         i32 address = *(vm->ip++);
         assert(address >= 0 && address < vm->values_count);
         struct Object* value = &vm->values[address];
+        if (value->type == T_CFUNCTION) {
+          i32 argc = value->value.cfunc.argc;
+          if (vm->stack_top < argc) {
+            runtime_error("Invalid number of arguments in C function call (should be %i)\n", argc);
+          }
+          i32 base = vm->stack_base = vm->stack_top - argc;
+          i32 ret_value_count = value->value.cfunc.func(vm);
+          if (ret_value_count > 0) {
+            vm->stack[base] = *stack_get_top(vm);
+            vm->stack_top = base + 1;
+          }
+          else {
+            vm->stack_top = base - 2;
+          }
+          break;
+        }
         if (value->type != T_FUNCTION) {
           runtime_error("Attempted to call a value which is not a function\n");
           return vm->status = ERR;
@@ -212,12 +268,31 @@ i32 execute(struct VM_state* vm) {
           vm->stack[base] = *stack_get_top(vm);
           vm->stack_top = base + 1;
         }
+        else {
+          vm->stack_top = base - 2;
+        }
         break;
       }
       // n args, i_push <function>, i_local_call <n_args>
       case I_LOCAL_CALL: {
         i32 argc = *(vm->ip++);
         struct Object value = *stack_pop(vm);
+        if (value.type == T_CFUNCTION) {
+          i32 argc = value.value.cfunc.argc;
+          if (vm->stack_top < argc) {
+            runtime_error("Invalid number of arguments in C function call (should be %i)\n", argc);
+          }
+          i32 base = vm->stack_base = vm->stack_top - argc;
+          i32 ret_value_count = value.value.cfunc.func(vm);
+          if (ret_value_count > 0) {
+            vm->stack[base] = *stack_get_top(vm);
+            vm->stack_top = base + 1;
+          }
+          else {
+            vm->stack_top = base - 2;
+          }
+          break;
+        }
         if (value.type != T_FUNCTION) {
           runtime_error("Attempted to call a value which is not a function\n");
           return vm->status = ERR;

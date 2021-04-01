@@ -34,7 +34,7 @@ static Htable symbols;  // Which symbols was added in this code generation pass?
 // Code generating functions
 static i32 set_branch_type(i32* branch_type, i32 type);
 static i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count);
-static i32 value_add(struct VM_state* vm, struct Object obj);
+static i32 value_add(struct VM_state* vm, struct Object value);
 static i32 define_value(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
 static i32 define_value_and_type(struct VM_state* vm, struct Token token, struct Function_state* fs, i32 type, i32* address);
 static i32 define_arg(struct VM_state* vm, struct Token token, struct Function_state* fs, i32* address);
@@ -133,9 +133,9 @@ i32 ins_add(struct VM_state* vm, i32 instruction, i32* ins_count) {
   return NO_ERR;
 }
 
-i32 value_add(struct VM_state* vm, struct Object obj) {
+i32 value_add(struct VM_state* vm, struct Object value) {
   i32 address = vm->values_count;
-  list_push(vm->values, vm->values_count, obj);
+  list_push(vm->values, vm->values_count, value);
   num_values_added++;
   return address;
 }
@@ -326,7 +326,7 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
 
           if (value) {
             // Normal function call
-            if (value->type == T_FUNCTION) {
+            if (value->type == T_FUNCTION || value->type == T_CFUNCTION) {
               Ast args = ast_get_node_at(ast, i + 1);
               if (args) {
                 struct Token* args_token = ast_get_value(&args);
