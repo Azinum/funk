@@ -1,9 +1,12 @@
-0000 jump          6
-0002 push_arg      0
-0004 push_arg      1
-0006 add
-0007 return
-0008 push          1 (value = 2)
-0010 push          2 (value = 3)
-0012 call          0 (value = function: 2)
-0014 return
+0000 jump          7
+0002 push_arg      1
+0004 push_arg      0
+0006 local_call    1
+0008 return
+0009 jump          3
+0011 push_arg      0
+0013 return
+0014 push          1 (value = function: 11)
+0016 push          2 (value = 3)
+0018 call          0 (value = function: 2)
+0020 return

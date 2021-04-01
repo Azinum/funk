@@ -159,7 +159,7 @@ i32 define_value_and_type(struct VM_state* vm, struct Token token, struct Functi
     ht_insert_element(&fs->symbol_table, name, *address);
     if (fs == &vm->fs_global) {
       // NOTE(lucas): Keep track of new global symbols that was added in
-      // this code generation pass (to be able to do rollback on the global symbol table)
+      // this code generation pass (to be able to do rollback on the global symbol table in case of error(s))
       ht_insert_element(&symbols, name, *address);
     }
   }
@@ -325,19 +325,55 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
           }
 
           if (value) {
+            // Normal function call
             if (value->type == T_FUNCTION) {
               Ast args = ast_get_node_at(ast, i + 1);
               if (args) {
-                if (ast_child_count(&args) > 0) {
-                  generate(vm, &args, fs, ins_count, branch_type);
+                struct Token* args_token = ast_get_value(&args);
+                if (args_token) {
+                  // Function arguments (if no function arguments are passed, then this is no function call, which is totally fine!)
+                  // We might want to, for instance, pass a function value to another function
+                  if (args_token->type == T_EXPR) {
+                    // printf("I_CALL: %.*s\n", token->length, token->string);
+                    if (ast_child_count(&args) > 0) {
+                      generate(vm, &args, fs, ins_count, branch_type);
+                    }
+                    i++;
+                    ins_add(vm, I_CALL, ins_count);
+                    ins_add(vm, address, ins_count);
+                  }
                 }
-                i++;
-                ins_add(vm, I_CALL, ins_count);
-                ins_add(vm, address, ins_count);
+                else {
+                  assert(0);
+                }
                 break;
               }
             }
             set_branch_type(branch_type, value->type);
+          }
+          else {
+            // Local function call
+            if (i + 1 < child_count) {
+              Ast args = ast_get_node_at(ast, i + 1);
+              if (args) {
+                struct Token* args_token = ast_get_value(&args);
+                if (args_token) {
+                  if (args_token->type == T_EXPR) {
+                    i32 num_args = ast_child_count(&args);
+                    if (num_args > 0) {
+                      generate(vm, &args, fs, ins_count, branch_type);
+                    }
+                    i++;
+                    // printf("I_LOCAL_CALL: %.*s\n", token->length, token->string);
+                    ins_add(vm, push_ins, ins_count);
+                    ins_add(vm, address, ins_count);
+                    ins_add(vm, I_LOCAL_CALL, ins_count);
+                    ins_add(vm, num_args, ins_count);
+                    break;
+                  }
+                }
+              }
+            }
           }
           ins_add(vm, push_ins, ins_count);
           ins_add(vm, address, ins_count);

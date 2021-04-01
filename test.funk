@@ -1,7 +1,9 @@
 // test.funk
 
-(define add(a b)
-  + a b
+(define event(e arg)
+  (e(arg))
 )
 
-(add(2 3))
+(define hello(n) n)
+
+(event((hello) 3))
