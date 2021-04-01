@@ -2,10 +2,12 @@
 
 #include "common.h"
 #include "util.h"
+#include "error.h"
 #include "lexer.h"
 
-#define lexer_error(fmt, ...) \
-  fprintf(stderr, "lex-error: %s:%i:%i: " fmt, l->filename, l->line, l->count, ##__VA_ARGS__)
+#define lex_error(fmt, ...) \
+  fprintf(stderr, "lex-error: %s:%i:%i: " fmt, l->filename, l->line, l->count, ##__VA_ARGS__); \
+  error_printline(l->source, l->token)
 
 static i32 is_alpha(char ch);
 static i32 is_number(char ch);
@@ -336,7 +338,7 @@ begin_loop:
         char delim = ch;
         for (;;) {
           if (*l->index == '\0') {
-            lexer_error("Unfinished string\n");
+            lex_error("Unfinished string\n");
             l->token.type = T_EOF;
             return l->token;
           }
@@ -366,7 +368,7 @@ begin_loop:
           return read_symbol(l);
         }
         else {
-          lexer_error("Unrecognized character\n");
+          lex_error("Unrecognized character\n");
           l->token.type = T_EOF;
           return l->token;
         }
@@ -378,6 +380,10 @@ begin_loop:
 }
 
 struct Token get_token(Lexer* l) {
+  l->token.line = l->line;
+  l->token.count = l->count;
+  l->token.filename = l->filename;
+  l->token.source = l->source;
   return l->token;
 }
 

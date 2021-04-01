@@ -5,19 +5,14 @@
 #include "util.h"
 #include "lexer.h"
 #include "token.h"
+#include "error.h"
 #include "parser.h"
-
-#if 0
-#define parse_error(fmt, ...) \
-  fprintf(stderr, "parse-error: %s:%i:%i: " fmt, p->l->filename, p->l->line, p->l->count, ##__VA_ARGS__)
-#endif
 
 #define parse_error(fmt, ...) \
   fprintf(stderr, "parse-error: %s:%i:%i: " fmt, p->l->filename, p->l->line, p->l->count, ##__VA_ARGS__); \
-  print_errorline(p)
+  error_printline(p->l->source, p->l->token)
 
 static void parser_init(Parser* parser, Lexer* lexer, Ast* ast);
-static void print_errorline(Parser* p);
 static i32 expect(Parser* p, i32 type);
 static i32 end(Parser* p);
 static i32 expr_end(Parser* p);
@@ -30,42 +25,6 @@ void parser_init(Parser* p, Lexer* l, Ast* ast) {
   p->l = l;
   p->ast = ast;
   p->status = 0;
-}
-
-void print_errorline(Parser* p) {
-  FILE* fp = stdout;
-  char* start = &p->l->source[0];
-  char* at = p->l->token.string;
-  i64 at_size = at - start;
-  i64 start_index = at_size;
-
-  // Scan to beginning of line
-  while (start_index >= 0) {
-    if (*at == '\n' || *at == '\r') {
-      break;
-    }
-    at--;
-    start_index--;
-  }
-
-  i64 end_index = start_index;
-  char* end_at = ++at;
-
-  // Scan to end of line
-  while (1) {
-    if (*end_at == '\n' || *end_at == '\r' || *end_at == '\0') {
-      break;
-    }
-    end_index++;
-    end_at++;
-  }
-  i64 line_size = end_index - start_index;
-  i64 pointer_size = at_size - start_index - 1;
-  fprintf(fp, "%.*s\n", (i32)(line_size), at);
-  for (i32 i = 0; i < pointer_size; i++) {
-    fprintf(fp, "-");
-  }
-  fprintf(fp, "^\n\n");
 }
 
 i32 expect(Parser* p, i32 type) {

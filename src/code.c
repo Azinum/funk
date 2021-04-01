@@ -5,11 +5,15 @@
 #include "ast.h"
 #include "vm.h"
 #include "util.h"
+#include "error.h"
 #include "code.h"
 
-// TODO(lucas): Add at which location (line, file) the error occured
 #define compile_error(fmt, ...) \
   fprintf(stderr, "compile-error: " fmt, ##__VA_ARGS__)
+
+#define compile_error2(token, fmt, ...) \
+  fprintf(stderr, "compile-error: %s:%i:%i: " fmt, token.filename, token.line, token.count, ##__VA_ARGS__); \
+  error_printline((&token.source[0]), token)
 
 #define UNRESOLVED_JUMP 0
 
@@ -147,7 +151,7 @@ i32 define_value_and_type(struct VM_state* vm, struct Token token, struct Functi
   struct Object obj = (struct Object) { .type = type, };
   const i32* found = ht_lookup(&fs->symbol_table, name);
   if (found) {
-    compile_error("Value '%.*s' has already been defined\n", token.length, token.string);
+    compile_error2(token, "Value '%.*s' has already been defined\n", token.length, token.string);
     return vm->status = ERR;
   }
   else {
@@ -168,7 +172,7 @@ static i32 define_arg(struct VM_state* vm, struct Token token, struct Function_s
 
   const i32* found = ht_lookup(&fs->args, name);
   if (found) {
-    compile_error("Parameter '%.*s' has already been defined\n", token.length, token.string);
+    compile_error2(token, "Parameter '%.*s' has already been defined\n", token.length, token.string);
     return vm->status = ERR;
   }
   else {
@@ -208,7 +212,7 @@ i32 get_value_address(struct VM_state* vm, struct Token token, struct Function_s
   } while ((fs = fs->parent) != NULL);
 
   if (!found_value) {
-    compile_error("No such value '%.*s'\n", token.length, token.string);
+    compile_error2(token, "No such value '%.*s'\n", token.length, token.string);
     return vm->status = ERR;
   }
   return NO_ERR;
@@ -261,7 +265,7 @@ i32 generate_func(struct VM_state* vm, struct Token name, Ast* args, Ast* body, 
     struct Token* arg = ast_get_node_value(args, i);
     if (arg) {
       if (arg->type != T_IDENTIFIER) {
-        compile_error("Expected identifier in function argument list (got '%.*s')\n", arg->length, arg->string);
+        compile_error2((*arg), "Expected identifier in function argument list (got '%.*s')\n", arg->length, arg->string);
         status = ERR;
         goto done;
       }
@@ -368,7 +372,7 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
                 type = type_obj.type;
               }
               else {
-                compile_error("The type '%.*s' is not defined\n", type_token->length, type_token->string);
+                compile_error2((*type_token), "The type '%.*s' is not defined\n", type_token->length, type_token->string);
                 return vm->status = ERR;
               }
             }
@@ -385,7 +389,7 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
               // Validate equality between value and branch types
               if (type_token) {
                 if (type != value_branch_type) {
-                  compile_error("This expression was expected to have type '%.*s'\n", type_token->length, type_token->string);
+                  compile_error2((*type_token), "This expression was expected to have type '%.*s'\n", type_token->length, type_token->string);
                   return vm->status = ERR;
                 }
               }
@@ -470,7 +474,7 @@ i32 generate(struct VM_state* vm, Ast* ast, struct Function_state* fs, i32* ins_
           Ast op_branch = ast_get_node_at(ast, i);
           assert(op_branch);
           if (ast_child_count(&op_branch) < 2) {
-            compile_error("Missing operands\n");
+            compile_error2((*token), "Missing operands\n");
             return vm->status = ERR;
           }
           generate(vm, &op_branch, fs, ins_count, branch_type);

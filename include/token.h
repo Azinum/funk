@@ -93,6 +93,11 @@ struct Token {
   union {
     i32 number;
   } value;
+
+  i32 line;
+  i32 count;
+  const char* filename;
+  char* source;
 };
 
 #define TOKEN_LET "let"

@@ -1,39 +1,9 @@
-0000 jump          3
-0002 push          1 (value = 5)
-0004 return
-0005 jump          11
-0007 push_arg      0
-0009 cond_jump     4
-0011 push          3 (value = 12)
-0013 jump          2
-0015 push          4 (value = 5)
-0017 return
-0018 push          2 (value = function: 7)
-0020 call          2 (value = function: 7)
-0022 push          5 (value = 5)
-0024 call          2 (value = function: 7)
-0026 push          6 (value = 5)
-0028 call          2 (value = function: 7)
-0030 push          7 (value = 5)
-0032 call          2 (value = function: 7)
-0034 push          8 (value = 5)
-0036 call          2 (value = function: 7)
-0038 push          9 (value = 5)
-0040 call          2 (value = function: 7)
-0042 push          10 (value = 5)
-0044 call          2 (value = function: 7)
-0046 push          11 (value = 5)
-0048 call          2 (value = function: 7)
-0050 push          12 (value = 5)
-0052 call          2 (value = function: 7)
-0054 push          13 (value = 5)
-0056 call          2 (value = function: 7)
-0058 push          14 (value = 5)
-0060 call          2 (value = function: 7)
-0062 push          15 (value = 5)
-0064 call          2 (value = function: 7)
-0066 push          16 (value = "hello there")
-0068 push          18 (value = "hello there")
-0070 assign        17
-0072 push          17 (value = "hello there")
-0074 return
+0000 jump          6
+0002 push_arg      0
+0004 push_arg      1
+0006 add
+0007 return
+0008 push          1 (value = 2)
+0010 push          2 (value = 3)
+0012 call          0 (value = function: 2)
+0014 return
