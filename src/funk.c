@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "vm.h"
 #include "util.h"
+#include "6502.h"
 #include "funk.h"
 
 #define MAX_INPUT 512
@@ -28,25 +29,31 @@
 static i32 user_input(struct VM_state* vm);
 
 i32 funk_start(i32 argc, char** argv) {
-  struct VM_state vm;
-  vm_init(&vm);
-#if 0
-  user_input(&vm);
-#else
-  (void)user_input;
   char* path = "test.funk";
-  char* source = read_file(path);
-  if (source) {
-    vm_exec(&vm, path, source);
-    free(source);
+  u8 use_6502 = 1;
+  if (use_6502) {
+    run_6502(path);
   }
-  user_input(&vm);
+  else {
+    struct VM_state vm;
+    vm_init(&vm);
+#if 0
+    user_input(&vm);
+#else
+    (void)user_input;
+    char* source = read_file(path);
+    if (source) {
+      vm_exec(&vm, path, source);
+      free(source);
+    }
+    user_input(&vm);
 #endif
-  vm_free(&vm);
-  if (memory_total() != 0) {
-    fprintf(stderr, "Memory leak!\n");
-    memory_print_info();
-    assert(memory_total() == 0);
+    vm_free(&vm);
+    if (memory_total() != 0) {
+      fprintf(stderr, "Memory leak!\n");
+      memory_print_info();
+      assert(memory_total() == 0);
+    }
   }
   return NO_ERR;
 }

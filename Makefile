@@ -12,6 +12,7 @@ compile: ${SRC}
 
 run:
 	./${BUILD_DIR}/${PROG}
+	6502_emulator test.funk.o65
 
 install:
 	${CC} ${SRC} ${FLAGS}

@@ -27,5 +27,6 @@ typedef double r64;
 
 #define PI32 3.14159265359f
 #define ARR_SIZE(ARR) ((sizeof(ARR)) / (sizeof(ARR[0])))
+#define MAX_PATH_SIZE 512
 
 #endif

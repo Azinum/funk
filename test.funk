@@ -1,10 +1,5 @@
 // test.funk
 
-(define p print)
-
-(define hello(a b)
-  a(b)
-)
-
-(let printer (p()))
-(hello((printer) "Hello World"))
+(let a: int 2)
+(let b: int 9)
+(a)
